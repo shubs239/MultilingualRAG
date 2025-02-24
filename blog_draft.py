@@ -1,7 +1,16 @@
 from google import genai
 from google.genai import types
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Access the variables
+api_key = os.getenv('API_KEY')
+client = genai.Client(api_key=api_key)
 from fetch_caption import  caption
-client = genai.Client(api_key="AIzaSyAldWTRZwX-4UZcMwJYwwdnL_DGTleNTLM")
+
 sys_instruct_initial="""You are AI Content repurposer. You will be given Context in hindi and you have to follow the below instructions.
  
 **Tone**: authoritative with knowledge

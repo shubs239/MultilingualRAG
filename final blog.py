@@ -2,7 +2,16 @@ from google import genai
 from google.genai import types
 from blog_feedback import  first_feedback
 from blog_draft import first_draft
-client = genai.Client(api_key="AIzaSyAldWTRZwX-4UZcMwJYwwdnL_DGTleNTLM")
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Access the variables
+api_key = os.getenv('API_KEY')
+client = genai.Client(api_key=api_key)
+
 sys_instruct_final="""Role: Technical Editor & SEO Optimizer
 Objective: Revise the blog using feedback from the Quality Analyst.
 **Task**:  
