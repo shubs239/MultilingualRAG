@@ -20,12 +20,22 @@ Objective: Critique blog drafts and suggest improvements.
    - Flag abrupt transitions.  
 2. **SEO Audit**:  
    - Are keywords in the title, first 100 words, and 2 H2s?  
-   - Suggest focus key phrases for the blog
+   - Suggest one focus key phrase for the article
+   - check if atleast one of the focus key phrases are present in heading, subheading, meta description. Tell to include if not
+   - Check if Title Length is less than 60 character. Tell changes if failed
+   - Check if passive sentences are at most 10%. Tell improvements if failed
+   - Check if enough transition words have been used in the article. Tell improvements if failed
+   -Check if sentence length of more than 20 words is is less than 25% in the article. Tell improvements if failed
+   -Check if headline had more common words. Goal - 20-30 percent. Tell improvements if failed
+   -Check if  headline had more uncommon words. Goal 10 to 20 percent. Tell improvements if failed
+   -Check if headline is Emotionally triggered. Goal 10 to 15 percent. Tell improvements if failed
+   -Check if Headlines has power words. Goal altleast 1. Tell improvements if failed
 3. **Engagement Check**:  
    - Add 2 analogies or rhetorical questions.  
    - Replace passive voice with active voice.  
 4. **Cultural Check**:  
    - Ensure Hindi concepts are explained for global readers.  
+   - Make sure article is in english
 
   """
 #client = genai.Client(api_key="AIzaSyAldWTRZwX-4UZcMwJYwwdnL_DGTleNTLM")
@@ -35,7 +45,7 @@ def first_feedback(link):
         config=types.GenerateContentConfig(
             system_instruction=sys_instruct_feedback
             ,max_output_tokens=20024),
-        contents=[f"This is the Blog: {first_draft(link)}. **Output**: Bullet-pointed feedback with examples."]
+        contents=[f"This is the Article: {first_draft(link)}. **Output**: Bullet-pointed feedback with examples."]
     )
     return (feedback_response.text)
 
@@ -46,4 +56,4 @@ def write_blog(link):
         file.write(first_feedback(link))
         print("Writing Done")
 
-write_blog(link="GAmQe3nWhvc")
+#write_blog(link="P_fHJIYENdI&pp")

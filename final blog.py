@@ -13,13 +13,15 @@ api_key = os.getenv('API_KEY')
 client = genai.Client(api_key=api_key)
 
 sys_instruct_final="""Role: Technical Editor & SEO Optimizer
-Objective: Revise the blog using feedback from the Quality Analyst.
+Objective: Revise the article using feedback from the Quality Analyst.
 **Task**:  
-1. Revise the blog step-by-step:  
+1. Revise the article step-by-step:  
    - Adjust structure per flow suggestions.  
    - Add/replace keywords as advised.  
+   - Add/replace focus key phrases
 2. Ensure:  
-   - Keyword density remains 1–2%."""#client = genai.Client(api_key="AIzaSyAldWTRZwX-4UZcMwJYwwdnL_DGTleNTLM")
+   - Keyword density remains 1–2%.
+   - Suggested changes are included."""#client = genai.Client(api_key="AIzaSyAldWTRZwX-4UZcMwJYwwdnL_DGTleNTLM")
 
 def final_draft(link):
     response_final = client.models.generate_content(
@@ -27,15 +29,24 @@ def final_draft(link):
         config=types.GenerateContentConfig(
             system_instruction=sys_instruct_final,
             max_output_tokens=20024),
-        contents=[f"This is the Blog: {first_draft(link)}. This is the feedback: {first_feedback(link)} **Output**: Revised blog with changes shown if any "]
+        contents=[f"This is the Article: {first_draft(link)}. This is the feedback: {first_feedback(link)} **Output**: Revised article with changes included as per suggestions."]
     )
     return (response_final.text)
 
 
 def write_blog(link):
-    with open('blog1.txt', 'w') as file:
+    with open('blog_initial.txt', 'w') as file:
+    # Write content to the file
+        file.write(first_draft(link))
+        print("First Draft Done")
+    with open('blog_Feedback.txt', 'w') as file:
+    # Write content to the file
+        file.write(first_feedback(link))
+        print("Feeback of Blog Done")
+    with open('blog_final.txt', 'w') as file:
     # Write content to the file
         file.write(final_draft(link))
-        print("Writing Done")
+        print("Final Draft Done")
 
-write_blog(link="GAmQe3nWhvc")
+
+write_blog(link="mWNwS_lHal0")

@@ -9,24 +9,25 @@ load_dotenv()
 # Access the variables
 api_key = os.getenv('API_KEY')
 client = genai.Client(api_key=api_key)
-from fetch_caption import  caption
+from fetch_caption import  caption, get_captions_up_to_hour
 
-sys_instruct_initial="""You are AI Content repurposer. You will be given Context in hindi and you have to follow the below instructions.
- 
+sys_instruct_initial=""" You are an AI content repurposer. You will be given youtube video transcript in a list like below
+[{'text': 'नमस्कार दोस्तों स्वागत है आप सभी का', 'start': 1.88, 'duration': 6.12}, {'text': 'रेशनल वर्ल्ड में दोस्तों आप लोग एक बार', 'start': 5.08, 'duration': 5.16}......}]
+This is a transcript from youtube video. text is what the user says in the video, start is when user start saying in secs and duration is the amount of time in secs,  You have to follow the below instructions.
 **Tone**: authoritative with knowledge
-**Keyword**: Caste, SC, ST, OBC, Brahminism, Hinduism 
 **Task**:  
 
-1. Structure the blog as follows:  
+1. Structure the article as follows:  
    - Introduction (hook + keyword mention)  
    - 7-10 H2 sections with 3–4 H3 subsections  
-   - Data-driven examples (cite 8–10 sources which were used in the context)  
+   - Data-driven examples (cite 8–10 sources which were used in the transcript)  
    - Conclusion with call-to-action 
-   - Write [insert image here] whenever you mention any refreneces used in the context. 
-   - Quote the refrences used in the context
+   - Write [insert image here -time] whenever mention any refreneces used in the context. Screenshot will be put in article as refrences. Also include time at which this screenshot needs to be taken 
    - Don't include any names of the persons/people involved in converstaion in the context
-   - Include a disclaimer which list the common terms used in the blog and what it means in the context like brahmin implied brahminism ideology etc.
-   - Start HTML from heading tag
+   - Don't include ** in HTML, use bold tag instead
+   - Add table of contents after introduction which are clickable
+   - Include a disclaimer which list the common terms used in the article and what it means in the context like brahmin implied brahminism ideology etc.
+
 2. Add SEO elements:  
    - Meta title (65 chars)  
    - Meta description (155 chars)  
@@ -39,7 +40,7 @@ def first_draft(link):
     config=types.GenerateContentConfig(
         system_instruction=sys_instruct_initial,
         max_output_tokens=20024),
-    contents=[f"This is the context: {caption(link=link)}. **Output**: Blog of atleast 3000 words in English in HTML."]
+    contents=[f"This is the context: {caption(link=link)}. **Output**: Article of atleast 3000 words in English in HTML."]
     )
     return (initial_response.text)
 
@@ -50,4 +51,5 @@ def write_blog(link):
         file.write(first_draft(link))
         print("Writing Done")
 
-write_blog(link="GAmQe3nWhvc")
+#write_blog(link="P_fHJIYENdI&pp")
+#https://www.youtube.com/watch?v=P_fHJIYENdI&pp=ygUKdmVyaXRhc2l1bQ%3D%3D
