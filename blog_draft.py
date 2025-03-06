@@ -33,6 +33,17 @@ This is a transcript from youtube video. text is what the user says in the video
    - Meta description (155 chars)  
     
 3. Ensure readability (Grade 8 level).  
+4. Output Format:
+-JSON with 
+[
+{
+    "title": "Title of the post",
+    "content": content in html,
+    "category": chose at least 3 from the list based on article [Caste and Society, Constitution,Debunk Fake Claims,History & Culture, Legal, Live Debates With Money Challenge,Philosophy & Ideology, Science & Rationality],
+    "meta-title": meta-title,
+    "meta-description": meta-description
+
+}
 """
 def first_draft(link):
     initial_response = client.models.generate_content(

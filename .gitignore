@@ -3,6 +3,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+blog_initial.txt
+blog_final.txt
+blog1.txt
+ganesha.txt
+transcript.txt
+blog_feedback.txt
+
 # C extensions
 *.so
 
