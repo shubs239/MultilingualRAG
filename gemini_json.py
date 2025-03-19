@@ -5,21 +5,23 @@ import os
 import json
 from pydantic import BaseModel
 
-
 # Load environment variables from .env file
 load_dotenv()
-# class Recipe(BaseModel):
-#   title: str
-#   content: str
-#   category: str
-#   meta_title: str
-#   meta_description: str
+
+class Recipe(BaseModel):
+    title: str
+    content: str
+    meta_title: str  # Use a string key to handle the hyphen correctly.
+    meta_description: str  # Use a string key to handle the hyphen correctly.
+    category: list[str]  # Changed to list to match the expected structure
+    # Use a string key to handle the hyphen correctly.
+
 # Access the variables
 api_key = os.getenv('API_KEY')
 client = genai.Client(api_key=api_key)
-from fetch_caption import  caption, get_captions_up_to_hour
+from fetch_caption import caption, get_captions_up_to_hour
 
-sys_instruct_initial=""" You are an AI content repurposer. You will be given youtube video transcript in a list like below
+sys_instruct_initial = """ You are an AI content repurposer. You will be given youtube video transcript in a list like below
 [{'text': 'नमस्कार दोस्तों स्वागत है आप सभी का', 'start': 1.88, 'duration': 6.12}, {'text': 'रेशनल वर्ल्ड में दोस्तों आप लोग एक बार', 'start': 5.08, 'duration': 5.16}......}]
 This is a transcript from youtube video. text is what the user says in the video, start is when user start saying in secs and duration is the amount of time in secs,  You have to follow the below instructions.
 **Tone**: authoritative with knowledge
@@ -41,40 +43,39 @@ This is a transcript from youtube video. text is what the user says in the video
    - Meta description (155 chars)  
     
 3. Ensure readability (Grade 8 level).  
-    - No repeatation of the same paragraph/heading/content in the article
-4. Output Format:
--JSON with 
-[
-{
-    "title": "Title of the post",
-    "content": content in html,
-    "category": chose at least 3 from the list based on article [Caste and Society, Constitution,Debunk Fake Claims,History & Culture, Legal, Live Debates With Money Challenge,Philosophy & Ideology, Science & Rationality],
-    "meta-title": meta-title,
-    "meta-description": meta-description
- 
 
-}
 
 """
+
 def first_draft(link):
     initial_response = client.models.generate_content(
-    model="gemini-2.0-flash",
-    config=types.GenerateContentConfig(
-        system_instruction=sys_instruct_initial,
-        max_output_tokens=20024),
-    contents=[f"This is the context: {caption(link=link)}. **Output**: Article of atleast 2000 words in English in HTML without style section."]
+        model="gemini-2.0-flash",
+        config=types.GenerateContentConfig(
+            system_instruction=sys_instruct_initial,
+            temperature=0.3,
+            max_output_tokens=20024
+        ),
+        contents=[f"This is the context: {caption(link=link)}. **Output**: Article of atleast 3000 words in English in HTML without style section."]
     )
-    return (initial_response.text)
+    try:
+        # This is CRUCIAL.  Parse the JSON response correctly.
+        return json.loads(initial_response.text) 
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON response: {e}")
+        print(f"Raw response text: {initial_response.text}")
+        return None
 
-# result = first_draft(link="P_fHJIYENdI&pp")
-# print(type(result))
-#print(result)
-# def write_blog(link):
-#     with open('blog_initial.json', 'w') as file:
-#     # Write content to the file
-#         file.dump(result)
-#         print("Writing Done")
+def write_blog(link):
+    data = first_draft(link)
+    if data:  # Check if first_draft returned valid data
+        try:
+            with open('Blogs data/blog_initial.json', 'w', encoding='utf-8') as file:
+                json.dump(data, file, indent=4) # Use json.dump() correctly. Add indent for readability.
+            print("Writing Done")
+        except Exception as e:
+            print(f"Error writing to file: {e}")
+    else:
+        print("No data to write.")
 
-# write_blog(link="P_fHJIYENdI&pp")
-#https://www.youtube.com/watch?v=P_fHJIYENdI&pp=ygUKdmVyaXRhc2l1bQ%3D%3D
+write_blog(link="GAmQe3nWhvc")
 

@@ -50,6 +50,10 @@ Objective: Critique blog drafts and suggest improvements.
 
   """
 #client = genai.Client(api_key="AIzaSyAldWTRZwX-4UZcMwJYwwdnL_DGTleNTLM")
+# first_draft_blog_path = "Blogs data/blog_initial.txt"
+# with open(first_draft_blog_path, 'r') as file:
+#     first_draft_blog = file.read()
+
 def first_feedback(link):
     feedback_response = client.models.generate_content(
         model="gemini-2.0-flash",
@@ -61,10 +65,10 @@ def first_feedback(link):
     return (feedback_response.text)
 
 
-def write_blog(link):
-    with open('blog_feedback.txt', 'w') as file:
-    # Write content to the file
-        file.write(first_feedback(link))
-        print("Writing Done")
+# def write_blog(link):
+#     with open('blog_feedback.txt', 'w') as file:
+#     # Write content to the file
+#         file.write(first_feedback(link))
+#         print("Writing Done")
 
 #write_blog(link="P_fHJIYENdI&pp")
