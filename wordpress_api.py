@@ -15,13 +15,13 @@ auth_data = {
     "username": "pappu4946@gmail.com",
     "password": "August@*28",
 }
-
+edit = False
 # Authenticate to get token
 #check if file token.txt exist and is not empty, 
 
 
 auth_response = requests.post(auth_url, data=auth_data)
-#   print(auth_response.json()['jwt_token'])
+#print(auth_response.json())
 token = auth_response.json()['jwt_token']
 #print("Token:", token)
 if not token:
@@ -34,7 +34,7 @@ else:
     #print("Authentication successful!")
 
 # Step 2: Create Post with JWT Token
-#post_url = "https://castefreeindia.com/wp-json/wp/v2/posts/1134"
+post_url = "https://castefreeindia.com/wp-json/wp/v2/posts/"
 new_post_url = "https://castefreeindia.com/wp-json/wp/v2/posts"
 #get_url ="https://castefreeindia.com/wp-json/wp/v2/posts/1058"
 post_data = {
@@ -69,14 +69,32 @@ def create_post(new_post_url, header):
     #print(response.status_code)
     return response
 
-create_response = create_post(new_post_url=new_post_url, header= headers_post)
-#edit_response = edit_post(post_url=post_url, header=headers_post)
-#get_response = get_post(get_url=get_url, header=headers_post)
-if create_response.status_code == 201 or create_response.status_code == 200:
-    print("Post created/edited successfully!")
+
+type_of_edit = input("Type edit, new: ")
+if type_of_edit == "edit":
+    edit = True
+    id = input("Enter post id: ")
+    post_url = f"https://castefreeindia.com/wp-json/wp/v2/posts/{id}"
+    edit_response = edit_post(post_url=post_url, header=headers_post)
+    #print(edit_response.status_code)
 else:
-    print("Error:", create_response.status_code)
-    print("Details:", create_response.json()['title'])
+    edit = False
+    create_response = create_post(new_post_url=new_post_url, header= headers_post)
+
+#get_response = get_post(get_url=get_url, header=headers_post)
+if edit:
+    if edit_response.status_code == 201 or edit_response.status_code == 200:
+        print("Post edited successfully!")
+    else:
+        print("Error:", edit_response.status_code)
+        print("Details:", edit_response.json()['title'])
+
+if not edit:
+    if create_response.status_code == 201 or create_response.status_code == 200:
+        print("Post created successfully!")
+    else:
+        print("Error:", create_response.status_code)
+        print("Details:", create_response.json()['title'])
 # response_edit= edit_post(post_url, headers_post)
 # print(response_edit.status_code)
 #print(response_edit.json())

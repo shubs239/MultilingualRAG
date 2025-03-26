@@ -25,24 +25,24 @@ This is a transcript from youtube video. text is what the user says in the video
 **Tone**: authoritative with knowledge
 **Task**:  
 
-1. Structure the article as follows:  
+1. Instructions:  
    - Introduction (hook + keyword mention)  
    - 7-10 H2 sections with 3–4 H3 subsections  
    - Data-driven examples (cite 8–10 sources which were used in the transcript)  
-   - Conclusion with call-to-action 
+   - Conclusion with call-to-action under heading What you can do?
    - Write [insert image here -time] whenever mention any refreneces used in the context. Screenshot will be put in article as refrences. Also include time at which this screenshot needs to be taken 
-   - Don't include any names of the persons/people involved in converstaion in the context
-   - Don't include ** in HTML, use bold tag instead
-   - Add table of contents after introduction which are clickable
-   - Include a disclaimer which list the common terms used in the article and what it means in the context like brahmin implied brahminism ideology etc.
-
-2. Add SEO elements:  
-   - Meta title (65 chars)  
-   - Meta description (155 chars)  
+   - Use bold tag wherever required
+   - Focus on facts where refreneces are provided in the transcript
+   - Avoid using names of the people who are discussing
+   - Avoid any greetings
+   - Add vertical table of contents after introduction which are clickable
+   - Include a disclaimer which list the common terms used in the article and what it means in the context.
+   - Include all the historical references, quotes from famous person/book used in the transcript
+   - Only use transcript to write the article, do ont use your own knowledge
     
-3. Ensure readability (Grade 8 level).  
-    - No repeatation of the same paragraph/heading/content in the article
-4. Output Format:
+2. Ensure readability (Grade 8 level).  
+    - Avoid repeatation of the same paragraph/heading/content in the article
+3. Output Format:
 -JSON with 
 [
 {
@@ -61,8 +61,8 @@ def first_draft(link):
     model="gemini-2.0-flash",
     config=types.GenerateContentConfig(
         system_instruction=sys_instruct_initial,
-        max_output_tokens=20024),
-    contents=[f"This is the context: {caption(link=link)}. **Output**: Article of atleast 2000 words in English in HTML without style section."]
+        max_output_tokens=50024),
+    contents=[f"This is the context: {caption(link=link)}. **Output**: Article of atleast 3000 words in English in HTML without style section."]
     )
     return (initial_response.text)
 
