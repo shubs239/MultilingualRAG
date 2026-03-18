@@ -7,18 +7,14 @@ from dotenv import load_dotenv
 load_dotenv()
 api_key = os.getenv('API_KEY')
 
-# Initialize the Gemini client
+# Initialize the Gemini client 1486
 
 client = genai.Client(api_key=api_key)
-# System instruction for the RAG bot
+# System instruction - Make the post controversial and interesting and add conversational parts from the article to make it enticing to open the link.
+#USe sattire and sarcastic tone. 
 sys_instruct = """
- You will be given the content of the article in html format. You have to repurpose it for reddit and X.
-   Use Sarcastic and satirical tone. Promote discussion. Write a satire this time.
-For Reddit: I want people to read a part of the article and make it so controversial that they want to click on the article link and read it completely. Add interesting and controversial parts from the article to make it enticing to open the link. 
-
-
-For X: Here, you can create a short excerpt that is interesting and controversial so people want to read more. You also have to suggest hashtags accordingly.Remember to be within X's word limit.
-"""
+ You will be given the content of the article in html format. You have to repurpose it for reddit. Make it controversial and interseting so people want to click the link to read more. Add interesteing and controversial parts from the content. Add 5-8 points in details from the original content.
+For Reddit: Focus on how Brahmans spread the fake narratives knowing it is wrong. Make it a scacthing post. They didn't even know how to read old scripts."""
 
 
 #print(post_data[0]['title'])
@@ -62,7 +58,7 @@ def get_post(get_url, header):
 
 def create_social_media_post(content):
     initial_response = client.models.generate_content(
-    model="gemini-2.0-flash",
+    model="models/gemini-flash-lite-latest",
     config=types.GenerateContentConfig(
         system_instruction=sys_instruct,
         max_output_tokens=20024),

@@ -41,7 +41,7 @@ post_data = {
     "title": ai_post_data[0]['title'],
     "content": ai_post_data[0]['content'],
     "status": "draft",
-    "category": ai_post_data[0]['category']
+    
     
 }
 # saved_token = open('token.txt', 'r')
