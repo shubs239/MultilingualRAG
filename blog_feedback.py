@@ -56,7 +56,7 @@ Objective: Critique blog drafts and suggest improvements.
 
 def first_feedback(link):
     feedback_response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="models/gemini-flash-lite-latest",
         config=types.GenerateContentConfig(
             system_instruction=sys_instruct_feedback
             ,max_output_tokens=20024),
@@ -71,4 +71,4 @@ def first_feedback(link):
 #         file.write(first_feedback(link))
 #         print("Writing Done")
 
-#write_blog(link="P_fHJIYENdI&pp")
+# write_blog(link="PZDHAS04Yk8")

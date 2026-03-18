@@ -34,22 +34,33 @@ Objective: Revise the article using feedback from the Quality Analyst.
     "title": "Title of the post",
     "content": content in html,
     "category": chose at least 3 from the list based on article [Caste and Society, Constitution,Debunk Fake Claims,History & Culture, Legal, Live Debates With Money Challenge,Philosophy & Ideology, Science & Rationality],
-    "meta-title": meta-title,
-    "meta-description": meta-description
-    "focus-keyphrase": focus key phrase selected
-
+    "meta": {
+    "description": meta description,
+    "keywords": keyword selected,
+}
 }
 ]"""#client = genai.Client(api_key="AIzaSyAldWTRZwX-4UZcMwJYwwdnL_DGTleNTLM")
 link = input("Enter the link id: ")
 print(link)
-
+#2606 - Videoblogify edit
 
 first_draft_response =first_draft(link=link)
 feedback_response = first_feedback(link)
+# print(feedback_response)
+# print(first_draft_response)
+with open(f'Blogs data/blog_initial.txt', 'w') as file:
+# Write content to the file
+    file.write(first_draft_response.text)
+    print("First Draft Done")
+with open(f'Blogs data/blog_Feedback.txt', 'w') as file:
+# Write content to the file
+    file.write(feedback_response)
+    print("Feeback of Blog Done")
+
 
 def final_draft():
     response_final = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="models/gemini-flash-lite-latest",
         config=types.GenerateContentConfig(
             system_instruction=sys_instruct_final,
             max_output_tokens=100024),
@@ -66,10 +77,10 @@ final_blog = final_draft()
 
 
 
-def write_blog(link):
+def write_blog():
     with open(f'Blogs data/blog_initial.txt', 'w') as file:
     # Write content to the file
-        file.write(first_draft_response)
+        file.write(first_draft_response.text)
         print("First Draft Done")
     with open(f'Blogs data/blog_Feedback.txt', 'w') as file:
     # Write content to the file
@@ -84,7 +95,7 @@ def write_blog(link):
         print("Final Draft Done")
 
 
-write_blog(link)
+write_blog()
 #https://www.youtube.com/watch?v=t9UmqFaYvTo  https://www.youtube.com/watch?v=1-LxA5zFBiY&t=8118s
 #https://www.youtube.com/watch?v=c0-Dk3l4D6I&t=2197s
 

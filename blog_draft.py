@@ -26,8 +26,9 @@ This is a transcript from youtube video. text is what the user says in the video
 **Task**:  
 
 1. Instructions:  
-   - Introduction (hook + keyword mention)  
+   - Introduction (hook + keyword mention)  Important!!
    - 7-10 H2 sections with 3–4 H3 subsections  
+   - Paragraphs of more than 300 words should be seperated by headings/sub headings
    - Data-driven examples (cite 8–10 sources which were used in the transcript)  
    - Conclusion with call-to-action under heading What you can do?
    - Write [insert image here -time] whenever mention any refreneces used in the context. Screenshot will be put in article as refrences. Also include time at which this screenshot needs to be taken 
@@ -35,10 +36,10 @@ This is a transcript from youtube video. text is what the user says in the video
    - Focus on facts where refreneces are provided in the transcript
    - Avoid using names of the people who are discussing
    - Avoid any greetings
-   - Add vertical table of contents after introduction which are clickable
+   - Avoid using the word 'transcript' in the article
    - Include a disclaimer which list the common terms used in the article and what it means in the context.
    - Include all the historical references, quotes from famous person/book used in the transcript
-   - Only use transcript to write the article, do ont use your own knowledge
+   - Only use transcript to write the article, do not use your own knowledge
     
 2. Ensure readability (Grade 8 level).  
     - Avoid repeatation of the same paragraph/heading/content in the article
@@ -49,32 +50,39 @@ This is a transcript from youtube video. text is what the user says in the video
     "title": "Title of the post",
     "content": content in html,
     "category": chose at least 3 from the list based on article [Caste and Society, Constitution,Debunk Fake Claims,History & Culture, Legal, Live Debates With Money Challenge,Philosophy & Ideology, Science & Rationality],
-    "meta-title": meta-title,
-    "meta-description": meta-description
+    "meta": {
+    "description": meta description,
+    "keywords": keyword selected,
+}
+
  
 
 }
 
 """
+# with open("Blogs data/blog_final copy.txt","r") as file:
+#     input_cap = file.read()
+   
+#get_captions_up_to_hour(captions=caption(link=link), input_hours=2.5)
 def first_draft(link):
     initial_response = client.models.generate_content(
-    model="gemini-2.0-flash",
+    model="models/gemini-2.5-flash-lite",
     config=types.GenerateContentConfig(
         system_instruction=sys_instruct_initial,
         max_output_tokens=50024),
-    contents=[f"This is the context: {caption(link=link)}. **Output**: Article of atleast 3000 words in English in HTML without style section."]
+    contents=[f"This is the context: { get_captions_up_to_hour(captions=caption(link=link),input_minutes=80)}. **Output**: Article of atleast 2000 words in English language in HTML without style section."]
     )
-    return (initial_response.text)
-
-# result = first_draft(link="P_fHJIYENdI&pp")
-# print(type(result))
+    return (initial_response)
+#1467
+# result = first_draft(link="hOI0i4IY11M")
+# print((result))
 #print(result)
 # def write_blog(link):
-#     with open('blog_initial.json', 'w') as file:
+#     with open('blog_initial.txt', 'w') as file:
 #     # Write content to the file
-#         file.dump(result)
+#         file.write(first_draft(link).text)
 #         print("Writing Done")
 
-# write_blog(link="P_fHJIYENdI&pp")
+# write_blog(link="PZDHAS04Yk8")
 #https://www.youtube.com/watch?v=P_fHJIYENdI&pp=ygUKdmVyaXRhc2l1bQ%3D%3D
 
