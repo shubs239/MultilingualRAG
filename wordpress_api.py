@@ -1,14 +1,10 @@
 import requests
 import json
 
-# Path to your JSON file
-json_file_path = "Blogs data/data.json"
+# Load final output from pipeline
+with open("final_output.json", "r", encoding="utf-8") as file:
+    final_data = json.load(file)
 
-# Load the JSON data from the file
-with open(json_file_path, "r") as file:
-    ai_post_data = json.load(file)
-
-#print(post_data[0]['title'])
 # Step 1: Get JWT Token
 auth_url = "https://castefreeindia.com/wp-json/api/v1/token"
 auth_data = {
@@ -17,7 +13,7 @@ auth_data = {
 }
 edit = False
 # Authenticate to get token
-#check if file token.txt exist and is not empty, 
+#check if file token.txt exist and is not empty,
 
 
 auth_response = requests.post(auth_url, data=auth_data)
@@ -29,20 +25,15 @@ if not token:
     exit()
 else:
     print("Authentication success")
-# with open('token.txt', 'r') as file:
-#     token =file.read()
-    #print("Authentication successful!")
 
 # Step 2: Create Post with JWT Token
 post_url = "https://castefreeindia.com/wp-json/wp/v2/posts/"
 new_post_url = "https://castefreeindia.com/wp-json/wp/v2/posts"
 #get_url ="https://castefreeindia.com/wp-json/wp/v2/posts/1058"
 post_data = {
-    "title": ai_post_data[0]['title'],
-    "content": ai_post_data[0]['content'],
+    "title": final_data["title"]["blog_seo_title"],
+    "content": final_data["content"]["blog_post_html"],
     "status": "draft",
-    
-    
 }
 # saved_token = open('token.txt', 'r')
 # token = saved_token.read()

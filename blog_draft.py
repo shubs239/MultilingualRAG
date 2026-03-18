@@ -3,86 +3,128 @@ from google.genai import types
 from dotenv import load_dotenv
 import os
 import json
-from pydantic import BaseModel
+from datetime import datetime, timezone
+from fetch_caption import caption, get_captions_up_to_hour
 
-
-# Load environment variables from .env file
 load_dotenv()
-# class Recipe(BaseModel):
-#   title: str
-#   content: str
-#   category: str
-#   meta_title: str
-#   meta_description: str
-# Access the variables
 api_key = os.getenv('API_KEY')
 client = genai.Client(api_key=api_key)
-from fetch_caption import  caption, get_captions_up_to_hour
 
-sys_instruct_initial=""" You are an AI content repurposer. You will be given youtube video transcript in a list like below
-[{'text': 'नमस्कार दोस्तों स्वागत है आप सभी का', 'start': 1.88, 'duration': 6.12}, {'text': 'रेशनल वर्ल्ड में दोस्तों आप लोग एक बार', 'start': 5.08, 'duration': 5.16}......}]
-This is a transcript from youtube video. text is what the user says in the video, start is when user start saying in secs and duration is the amount of time in secs,  You have to follow the below instructions.
-**Tone**: authoritative with knowledge
-**Task**:  
+sys_instruct_initial = """You are an expert content writer for castefreeindia.com — an anti-caste, evidence-based blog rooted in Ambedkarite and Phule-Periyar thought.
 
-1. Instructions:  
-   - Introduction (hook + keyword mention)  Important!!
-   - 7-10 H2 sections with 3–4 H3 subsections  
-   - Paragraphs of more than 300 words should be seperated by headings/sub headings
-   - Data-driven examples (cite 8–10 sources which were used in the transcript)  
-   - Conclusion with call-to-action under heading What you can do?
-   - Write [insert image here -time] whenever mention any refreneces used in the context. Screenshot will be put in article as refrences. Also include time at which this screenshot needs to be taken 
-   - Use bold tag wherever required
-   - Focus on facts where refreneces are provided in the transcript
-   - Avoid using names of the people who are discussing
-   - Avoid any greetings
-   - Avoid using the word 'transcript' in the article
-   - Include a disclaimer which list the common terms used in the article and what it means in the context.
-   - Include all the historical references, quotes from famous person/book used in the transcript
-   - Only use transcript to write the article, do not use your own knowledge
-    
-2. Ensure readability (Grade 8 level).  
-    - Avoid repeatation of the same paragraph/heading/content in the article
-3. Output Format:
--JSON with 
-[
+You will be given a YouTube video transcript. Write a long-form blog post from it.
+
+WRITING RULES:
+- Tone: authoritative, clear, direct — not academic jargon
+- Audience: English-reading Indians, diaspora, researchers, allies
+- Only use content from the transcript — do not add your own knowledge
+- Avoid repeating paragraphs, headings, or content
+- Avoid using names of people who are discussing (presenters/hosts)
+- Avoid greetings and avoid using the word "transcript"
+- Structure: Introduction (hook + keyword mention) → 7-10 H2 sections with 3-4 H3 subsections → Conclusion with CTA under "What Can You Do?"
+- Include all historical references, scripture quotes, and quotes from famous persons mentioned — use <blockquote> tags
+- Write [insert image here - Xm Ys] wherever a screenshot reference is needed (include timestamp from transcript)
+- Include a Disclaimer section listing key terms and their meaning in context
+- Use <strong> tags for bold where required
+- Valid HTML only — use <h2>, <h3>, <p>, <blockquote>, <ul>, <li>, <strong> — NO inline CSS
+- Minimum 2000 words in English
+
+HEADLINE RULES:
+blog_h1 — choose the pattern that fits best:
+- "What [X] Actually [Says/Shows/Proves] — And Why [Consequence]"
+- "How [Historical Fact] — And Why It Is Still [Happening/Defended/Ignored]"
+- "The [Source] That Proves [Claim] — With Evidence"
+- Must be rage bait to induce emotional response and drive clicks, but also factually accurate and curiosity-driven
+Must be: SEO-friendly, curiosity-driven, factually accurate, high-emotion enough to drive clicks
+
+blog_seo_title: under 60 characters, includes primary keyword, factual
+
+SOURCING:
+Identify every factual claim that needs a citation (scripture, government data, news, research paper). For each:
+- claim: exact claim text
+- type: "scripture" | "government" | "news" | "research"
+- suggested_search: a search query to find the source
+- insert_after_paragraph: paragraph number (1-indexed) after which to insert the citation
+
+OUTPUT FORMAT — respond ONLY with valid JSON, no markdown code blocks:
 {
-    "title": "Title of the post",
-    "content": content in html,
-    "category": chose at least 3 from the list based on article [Caste and Society, Constitution,Debunk Fake Claims,History & Culture, Legal, Live Debates With Money Challenge,Philosophy & Ideology, Science & Rationality],
-    "meta": {
-    "description": meta description,
-    "keywords": keyword selected,
+  "headlines": {
+    "blog_h1": "",
+    "blog_seo_title": ""
+  },
+  "content": {
+    "blog_post_html": ""
+  },
+  "sourcing": {
+    "claims_needing_citation": [
+      {
+        "claim": "",
+        "type": "scripture",
+        "suggested_search": "",
+        "insert_after_paragraph": 0
+      }
+    ]
+  }
 }
-
- 
-
-}
-
 """
-# with open("Blogs data/blog_final copy.txt","r") as file:
-#     input_cap = file.read()
-   
-#get_captions_up_to_hour(captions=caption(link=link), input_hours=2.5)
+
+
 def first_draft(link):
-    initial_response = client.models.generate_content(
-    model="models/gemini-2.5-flash-lite",
-    config=types.GenerateContentConfig(
-        system_instruction=sys_instruct_initial,
-        max_output_tokens=50024),
-    contents=[f"This is the context: { get_captions_up_to_hour(captions=caption(link=link),input_minutes=80)}. **Output**: Article of atleast 2000 words in English language in HTML without style section."]
+    transcript = get_captions_up_to_hour(captions=caption(link=link), input_minutes=60)
+
+    raw_response = client.models.generate_content(
+        model="models/gemini-2.5-flash-lite",
+        config=types.GenerateContentConfig(
+            system_instruction=sys_instruct_initial,
+            max_output_tokens=50024),
+        contents=[f"This is the transcript: {transcript}. Output: Article of at least 2000 words in English in HTML without style section."]
     )
-    return (initial_response)
-#1467
-# result = first_draft(link="hOI0i4IY11M")
-# print((result))
-#print(result)
-# def write_blog(link):
-#     with open('blog_initial.txt', 'w') as file:
-#     # Write content to the file
-#         file.write(first_draft(link).text)
-#         print("Writing Done")
 
-# write_blog(link="PZDHAS04Yk8")
-#https://www.youtube.com/watch?v=P_fHJIYENdI&pp=ygUKdmVyaXRhc2l1bQ%3D%3D
+    response_text = raw_response.text.strip()
+    # Strip markdown code fences if present
+    if response_text.startswith("```"):
+        response_text = response_text.split("```", 2)[1]
+        if response_text.startswith("json"):
+            response_text = response_text[4:]
+        response_text = response_text.rsplit("```", 1)[0].strip()
 
+    gemini_output = json.loads(response_text)
+
+    blog_html = gemini_output.get("content", {}).get("blog_post_html", "")
+    word_count = len(blog_html.split())
+
+    draft_output = {
+        "meta": {
+            "script_stage": "draft",
+            "source_video_url": f"https://www.youtube.com/watch?v={link}",
+            "transcript_file": "",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "word_count": word_count
+        },
+        "headlines": {
+            "blog_h1": gemini_output.get("headlines", {}).get("blog_h1", ""),
+            "blog_seo_title": gemini_output.get("headlines", {}).get("blog_seo_title", "")
+        },
+        "content": {
+            "blog_post_html": blog_html
+        },
+        "feedback": {
+            "issues_found": [],
+            "suggestions": [],
+            "score": 0
+        },
+        "sourcing": {
+            "claims_needing_citation": gemini_output.get("sourcing", {}).get("claims_needing_citation", [])
+        }
+    }
+
+    with open("draft_output.json", "w", encoding="utf-8") as f:
+        json.dump(draft_output, f, ensure_ascii=False, indent=2)
+    print("Draft saved to draft_output.json")
+
+    return draft_output
+
+
+if __name__ == "__main__":
+    link = input("Enter the YouTube video ID: ")
+    first_draft(link)

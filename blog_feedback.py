@@ -1,74 +1,88 @@
 from google import genai
 from google.genai import types
-from blog_draft import  first_draft
 from dotenv import load_dotenv
 import os
+import json
 
-# Load environment variables from .env file
 load_dotenv()
-
-# Access the variables
 api_key = os.getenv('API_KEY')
 client = genai.Client(api_key=api_key)
 
-sys_instruct_feedback="""You are SEO Editor & Content Strategist. You will be given blog in Json Format below.
-Output Format:
--JSON 
-[
+sys_instruct_feedback = """You are an SEO Editor & Content Strategist for an anti-caste, evidence-based blog.
+
+You will be given an HTML blog post. Analyse it and return ONLY a feedback block — do not rewrite the article.
+
+ANALYSIS CHECKS:
+
+1. Flow Check:
+   - Does the introduction clearly state the purpose?
+   - Are H2 sections ordered logically (problem → evidence → solution)?
+   - Flag any abrupt transitions
+
+2. SEO Audit:
+   - Are keywords in the title, first 100 words, and at least 2 H2s?
+   - Suggest one focus key phrase
+   - Check if focus key phrase is present in heading, subheading, and meta description
+   - Check if title length is under 60 characters
+   - Check if passive sentences are at most 10%
+   - Check if transition words are adequate
+   - Check if sentences over 20 words are under 25% of total
+   - Headline word balance: 20-30% common, 10-20% uncommon, 10-15% emotional, at least 1 power word
+
+3. Engagement Check:
+   - Does it use analogies or rhetorical questions?
+   - Is passive voice minimised?
+
+4. Cultural Check:
+   - Are Hindi/Sanskrit concepts explained for global readers?
+   - Is the article entirely in English?
+
+OUTPUT FORMAT — respond ONLY with valid JSON, no markdown code blocks:
 {
-    "title": "Title of the post",
-    "content": content in html,
-    "category": chose at least 3 from the list based on article [Caste and Society, Constitution,Debunk Fake Claims,History & Culture, Legal, Live Debates With Money Challenge,Philosophy & Ideology, Science & Rationality],
-    "meta-title": meta-title,
-    "meta-description": meta-description
-
+  "issues_found": ["issue 1", "issue 2"],
+  "suggestions": ["suggestion 1", "suggestion 2"],
+  "score": 75
 }
-Objective: Critique blog drafts and suggest improvements. 
-**Task**:  
-1. **Flow Check in content**:  
-   - Does the introduction clearly state the purpose?  
-   - Are H2 sections ordered logically (e.g., problem → solution)?  
-   - Flag abrupt transitions.  
-2. **SEO Audit in title and content**:  
-   - Are keywords in the title, first 100 words, and 2 H2s?  
-   - Suggest one focus key phrase for the article
-   - check if atleast one of the focus key phrases are present in heading, subheading, meta description. Tell to include if not
-   - Check if Title Length is less than 60 character. Tell changes if failed
-   - Check if passive sentences are at most 10%. Tell improvements if failed
-   - Check if enough transition words have been used in the article. Tell improvements if failed
-   -Check if sentence length of more than 20 words is is less than 25% in the article. Tell improvements if failed
-   -Check if headline had more common words. Goal - 20-30 percent. Tell improvements if failed
-   -Check if  headline had more uncommon words. Goal 10 to 20 percent. Tell improvements if failed
-   -Check if headline is Emotionally triggered. Goal 10 to 15 percent. Tell improvements if failed
-   -Check if Headlines has power words. Goal altleast 1. Tell improvements if failed
-3. **Engagement Check in content**:  
-   - Add 2 analogies or rhetorical questions.  
-   - Replace passive voice with active voice.  
-4. **Cultural Check in content**:  
-   - Ensure Hindi concepts are explained for global readers.  
-   - Make sure article is in english
 
-  """
-#client = genai.Client(api_key="AIzaSyAldWTRZwX-4UZcMwJYwwdnL_DGTleNTLM")
-# first_draft_blog_path = "Blogs data/blog_initial.txt"
-# with open(first_draft_blog_path, 'r') as file:
-#     first_draft_blog = file.read()
+score is 0-100 based on overall quality.
+"""
 
-def first_feedback(link):
-    feedback_response = client.models.generate_content(
+
+def first_feedback():
+    with open("draft_output.json", "r", encoding="utf-8") as f:
+        draft = json.load(f)
+
+    blog_html = draft["content"]["blog_post_html"]
+
+    raw_response = client.models.generate_content(
         model="models/gemini-flash-lite-latest",
         config=types.GenerateContentConfig(
-            system_instruction=sys_instruct_feedback
-            ,max_output_tokens=20024),
-        contents=[f"This is the Article: {first_draft(link)}. **Output**: Bullet-pointed feedback with examples."]
+            system_instruction=sys_instruct_feedback,
+            max_output_tokens=20024),
+        contents=[f"This is the blog post HTML: {blog_html}. Output: Feedback in JSON format as described."]
     )
-    return (feedback_response.text)
+
+    response_text = raw_response.text.strip()
+    if response_text.startswith("```"):
+        response_text = response_text.split("```", 2)[1]
+        if response_text.startswith("json"):
+            response_text = response_text[4:]
+        response_text = response_text.rsplit("```", 1)[0].strip()
+
+    feedback_block = json.loads(response_text)
+
+    draft["feedback"] = {
+        "issues_found": feedback_block.get("issues_found", []),
+        "suggestions": feedback_block.get("suggestions", []),
+        "score": feedback_block.get("score", 0)
+    }
+
+    with open("feedback_output.json", "w", encoding="utf-8") as f:
+        json.dump(draft, f, ensure_ascii=False, indent=2)
+    print("Feedback saved to feedback_output.json")
+
+    return draft
 
 
-# def write_blog(link):
-#     with open('blog_feedback.txt', 'w') as file:
-#     # Write content to the file
-#         file.write(first_feedback(link))
-#         print("Writing Done")
-
-# write_blog(link="PZDHAS04Yk8")
+if __name__ == "__main__":
+    first_feedback()

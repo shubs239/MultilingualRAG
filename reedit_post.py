@@ -1,75 +1,121 @@
-import requests
 import json
 import os
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from datetime import datetime, timezone
+
 load_dotenv()
 api_key = os.getenv('API_KEY')
-
-# Initialize the Gemini client 1486
-
 client = genai.Client(api_key=api_key)
-# System instruction - Make the post controversial and interesting and add conversational parts from the article to make it enticing to open the link.
-#USe sattire and sarcastic tone. 
-sys_instruct = """
- You will be given the content of the article in html format. You have to repurpose it for reddit. Make it controversial and interseting so people want to click the link to read more. Add interesteing and controversial parts from the content. Add 5-8 points in details from the original content.
-For Reddit: Focus on how Brahmans spread the fake narratives knowing it is wrong. Make it a scacthing post. They didn't even know how to read old scripts."""
 
+sys_instruct = """You are a social media content strategist for castefreeindia.com — an anti-caste, evidence-based blog.
 
-#print(post_data[0]['title'])
-# Step 1: Get JWT Token
-auth_url = "https://castefreeindia.com/wp-json/api/v1/token"
-auth_data = {
-    "username": "pappu4946@gmail.com",
-    "password": "August@*28",
+You will be given the final blog post HTML and its title. Create platform-specific social media content.
+
+PLATFORM RULES:
+
+X (TWITTER) HOOK — first tweet of thread:
+- Lead with a number, date, or single hard fact from the article
+- No hedging language (no "seems", "apparently", "might")
+- Under 240 characters
+- End with 🧵
+
+X THREAD:
+- 3-5 tweets expanding on key findings from the article
+- Each tweet standalone, factual, under 280 characters
+- End the final tweet with: [LINK]
+
+REDDIT TITLE:
+- Deliver the actual finding in the title itself — not just a tease
+- Never sounds promotional
+- Rage-baity but 100% supported by the content
+
+REDDIT POST:
+- 5-8 detailed bullet points from the article
+- Controversial and interesting — make people want to click for more
+- Scathing but factual — focus on how historical injustices were normalised and defended
+- End with: [LINK]
+
+INSTAGRAM CAPTION LINE 1 (caption_line1):
+- Direct address: "They tell you..." / "Nobody talks about..." / "Here is what they removed from..."
+- Max 12 words
+- Must work without any context
+
+INSTAGRAM CAPTION FULL:
+- caption_line1 as the first line
+- 3-5 lines with key facts from the article
+- Relevant hashtags at the end
+
+FACEBOOK POST:
+- 2 sentences max before the link
+- Slightly warmer tone than X
+- Written to make someone tag a friend
+- End with: [LINK]
+
+OUTPUT FORMAT — respond ONLY with valid JSON, no markdown code blocks:
+{
+  "x": {
+    "hook": "",
+    "thread": ["tweet 1", "tweet 2", "tweet 3"]
+  },
+  "reddit": {
+    "title": "",
+    "post": ""
+  },
+  "instagram": {
+    "caption_line1": "",
+    "caption_full": ""
+  },
+  "facebook": {
+    "post": ""
+  }
 }
-
-# Authenticate to get token
-#check if file token.txt exist and is not empty, 
+"""
 
 
-auth_response = requests.post(auth_url, data=auth_data)
-#   print(auth_response.json()['jwt_token'])
-token = auth_response.json()['jwt_token']
-#print("Token:", token)
-if not token:
-    print("Authentication failed!")
-    exit()
-else:
-    print("Authentication success")
+def create_social_media_post():
+    with open("final_output.json", "r", encoding="utf-8") as f:
+        final_data = json.load(f)
 
-post_id = input("Enter the post id: ")
-get_url =f"https://castefreeindia.com/wp-json/wp/v2/posts/{post_id}"
+    blog_html = final_data["content"]["blog_post_html"]
+    blog_h1 = final_data["title"]["blog_h1"]
 
-
-
-headers_post = {
-    "Content-Type": "application/json",
-    "Authorization": f"Bearer {token}",
-}
-def get_post(get_url, header):
-    response = requests.get(url=get_url, headers=header)
-    print(response.status_code)
-    
-    
-
-    return response
-
-def create_social_media_post(content):
-    initial_response = client.models.generate_content(
-    model="models/gemini-flash-lite-latest",
-    config=types.GenerateContentConfig(
-        system_instruction=sys_instruct,
-        max_output_tokens=20024),
-    contents=[f"This is the content in HTML format: {content}. **Output**: Reddit Post and X post with hashtags."]
+    raw_response = client.models.generate_content(
+        model="models/gemini-flash-lite-latest",
+        config=types.GenerateContentConfig(
+            system_instruction=sys_instruct,
+            max_output_tokens=20024),
+        contents=[f"Blog title: {blog_h1}\n\nBlog content HTML: {blog_html}\n\nOutput: Social media posts in JSON format as described."]
     )
-    return (initial_response.text)
 
-post_response = get_post(get_url, headers_post)
+    response_text = raw_response.text.strip()
+    if response_text.startswith("```"):
+        response_text = response_text.split("```", 2)[1]
+        if response_text.startswith("json"):
+            response_text = response_text[4:]
+        response_text = response_text.rsplit("```", 1)[0].strip()
 
-with open("Blogs data/redditpost.txt","w") as file:
-    file.write(create_social_media_post(post_response.json()['content']['rendered']))
-    print("File created successfully")
-    file.close()
-#print(create_social_media_post(post_response.json()['content']['rendered']))
+    gemini_output = json.loads(response_text)
+
+    social_output = {
+        "meta": {
+            "script_stage": "social",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "source_post_title": blog_h1
+        },
+        "x": gemini_output.get("x", {"hook": "", "thread": []}),
+        "reddit": gemini_output.get("reddit", {"title": "", "post": ""}),
+        "instagram": gemini_output.get("instagram", {"caption_line1": "", "caption_full": ""}),
+        "facebook": gemini_output.get("facebook", {"post": ""})
+    }
+
+    with open("social_output.json", "w", encoding="utf-8") as f:
+        json.dump(social_output, f, ensure_ascii=False, indent=2)
+    print("Social media content saved to social_output.json")
+
+    return social_output
+
+
+if __name__ == "__main__":
+    create_social_media_post()
