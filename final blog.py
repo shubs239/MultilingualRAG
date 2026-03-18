@@ -34,6 +34,11 @@ keyword_list: 5-10 SEO keywords as array of strings
 SOURCING:
 Update the claims_needing_citation list to reflect the revised article paragraph numbering.
 
+SOCIAL IMAGE FIELDS:
+most_shareable_quote: single most striking/standalone sentence from the blog — works as a pull-quote
+meme_top_text: the popular misconception this post challenges — punchy, ≤15 words
+meme_bottom_text: the factual counter from the post — punchy, ≤15 words, cite source inline if possible
+
 OUTPUT FORMAT — respond ONLY with valid JSON, no markdown code blocks:
 {
   "title": {
@@ -43,7 +48,10 @@ OUTPUT FORMAT — respond ONLY with valid JSON, no markdown code blocks:
   "content": {
     "blog_post_html": "",
     "meta_description": "",
-    "keyword_list": []
+    "keyword_list": [],
+    "most_shareable_quote": "",
+    "meme_top_text": "",
+    "meme_bottom_text": ""
   },
   "sourcing": {
     "claims_needing_citation": [
@@ -101,7 +109,10 @@ def final_draft():
         "content": {
             "blog_post_html": blog_html_final,
             "meta_description": gemini_output.get("content", {}).get("meta_description", ""),
-            "keyword_list": gemini_output.get("content", {}).get("keyword_list", [])
+            "keyword_list": gemini_output.get("content", {}).get("keyword_list", []),
+            "most_shareable_quote": gemini_output.get("content", {}).get("most_shareable_quote", ""),
+            "meme_top_text": gemini_output.get("content", {}).get("meme_top_text", ""),
+            "meme_bottom_text": gemini_output.get("content", {}).get("meme_bottom_text", ""),
         },
         "sourcing": {
             "claims_needing_citation": gemini_output.get("sourcing", {}).get("claims_needing_citation", [])
