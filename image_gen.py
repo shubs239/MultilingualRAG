@@ -2,16 +2,56 @@ import json
 import os
 import re
 import shutil
+import urllib.request
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageColor, ImageDraw, ImageFont
 
 # ── Colour palette ────────────────────────────────────────────────────────────
-BG_DARK     = "#1a1a1a"
-BG_MID      = "#222222"
-CHAKRA_BLUE = "#06038D"
-WHITE       = "#FFFFFF"
-MUTED       = "#AAAAAA"
+CHAKRA_BLUE = "#06038D"   # Ashoka Chakra blue — accent lines, labels
+TEXT_DARK   = "#1A1A1A"   # primary text on light background
+MUTED       = "#666666"   # secondary text / captions
 SITE_NAME   = "CasteFreeIndia.com"
+
+# ── Font ──────────────────────────────────────────────────────────────────────
+FONT_PATH = "./fonts/NotoSans-Bold.ttf"
+FONT_URL  = "https://github.com/google/fonts/raw/main/ofl/notosans/NotoSans-Bold.ttf"
+
+
+def load_font(size: int) -> ImageFont.FreeTypeFont:
+    candidates = [
+        FONT_PATH,
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+    ]
+    for path in candidates:
+        try:
+            return ImageFont.truetype(path, size)
+        except Exception:
+            continue
+    os.makedirs("./fonts", exist_ok=True)
+    if not os.path.exists(FONT_PATH):
+        print("  Downloading NotoSans-Bold.ttf …")
+        urllib.request.urlretrieve(FONT_URL, FONT_PATH)
+    return ImageFont.truetype(FONT_PATH, size)
+
+
+# ── Gradient background ───────────────────────────────────────────────────────
+
+def make_gradient_bg(size, color_top="#FFFBF5", color_bottom="#EDE8DF"):
+    W, H = size
+    img = Image.new("RGB", (W, H))
+    r1, g1, b1 = ImageColor.getrgb(color_top)
+    r2, g2, b2 = ImageColor.getrgb(color_bottom)
+    pixels = []
+    for y in range(H):
+        t = y / H
+        r = int(r1 + (r2 - r1) * t)
+        g = int(g1 + (g2 - g1) * t)
+        b = int(b1 + (b2 - b1) * t)
+        pixels.extend([(r, g, b)] * W)
+    img.putdata(pixels)
+    return img
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -20,21 +60,6 @@ def make_slug(text: str) -> str:
     text = re.sub(r"[^a-z0-9\s-]", "", text)
     text = re.sub(r"\s+", "-", text)
     return text[:80]
-
-
-def load_font(size: int) -> ImageFont.FreeTypeFont:
-    candidates = [
-        "./fonts/NotoSans-Bold.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/Library/Fonts/Arial.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    ]
-    for path in candidates:
-        try:
-            return ImageFont.truetype(path, size)
-        except Exception:
-            continue
-    return ImageFont.load_default()
 
 
 def wrap_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> list[str]:
@@ -87,14 +112,28 @@ def hline(draw: ImageDraw.ImageDraw, y: int, img_width: int,
     draw.rectangle([(margin, y), (img_width - margin, y + thickness)], fill=colour)
 
 
+def extract_bullets(html: str, max_bullets: int = 4) -> list[str]:
+    """Pull first max_bullets <li> items, strip inner HTML tags."""
+    items = re.findall(r'<li[^>]*>(.*?)</li>', html, re.DOTALL | re.IGNORECASE)
+    clean = []
+    for item in items:
+        text = re.sub(r'<[^>]+>', '', item).strip()
+        text = re.sub(r'\s+', ' ', text)
+        if text and len(text) > 10:          # skip navigation/short items
+            clean.append(text[:120])         # cap per-bullet length
+        if len(clean) == max_bullets:
+            break
+    return clean or ["See blog for details."]
+
+
 # ── Image 1 — Quote card (1080×1080) ─────────────────────────────────────────
 
 def make_quote_card(blog_h1: str, quote: str, slug: str, folder: str):
     W, H = 1080, 1080
-    img = Image.new("RGB", (W, H), BG_DARK)
+    img = make_gradient_bg((W, H))
     draw = ImageDraw.Draw(img)
 
-    # Site name
+    # Site name (centered, small caps style)
     font_site = load_font(28)
     site_text = SITE_NAME.upper()
     bbox = draw.textbbox((0, 0), site_text, font=font_site)
@@ -108,7 +147,7 @@ def make_quote_card(blog_h1: str, quote: str, slug: str, folder: str):
     font_q, q_lines = auto_shrink_font(draw, quote, start_size=52,
                                        max_width=W - 120, max_lines=3)
     draw_centered_text(draw, q_lines, font_q, y_start=200, img_width=W,
-                       colour=WHITE, line_spacing=16)
+                       colour=TEXT_DARK, line_spacing=16)
 
     # Bottom rule
     hline(draw, 820, W, CHAKRA_BLUE, thickness=4)
@@ -132,32 +171,47 @@ def make_quote_card(blog_h1: str, quote: str, slug: str, folder: str):
     print(f"  Saved: {path}")
 
 
-# ── Image 2 — X header (1600×900) ────────────────────────────────────────────
+# ── Image 2 — X header (1600×900) — bullet-point layout ──────────────────────
 
-def make_x_header(blog_h1: str, slug: str, folder: str):
+def make_x_header(blog_h1: str, blog_html: str, slug: str, folder: str):
     W, H = 1600, 900
-    img = Image.new("RGB", (W, H), BG_DARK)
+    img = make_gradient_bg((W, H))
     draw = ImageDraw.Draw(img)
 
-    # Resolve x_hook
-    x_hook = ""
-    if os.path.exists("social_output.json"):
-        with open("social_output.json", encoding="utf-8") as f:
-            x_hook = json.load(f).get("x", {}).get("hook", "")
-    x_hook = x_hook.replace("🧵", "").strip() or blog_h1
-
-    # Site name (left-aligned)
-    font_site = load_font(28)
-    draw.text((80, 60), SITE_NAME.upper(), font=font_site, fill=CHAKRA_BLUE)
+    # ── Site name (left-aligned)
+    font_site = load_font(30)
+    draw.text((80, 50), SITE_NAME.upper(), font=font_site, fill=CHAKRA_BLUE)
 
     # Rule below site name
-    draw.rectangle([(80, 110), (W - 80, 113)], fill=CHAKRA_BLUE)
+    draw.rectangle([(80, 100), (W - 80, 103)], fill=CHAKRA_BLUE)
 
-    # x_hook (auto-shrink)
-    font_hook, hook_lines = auto_shrink_font(draw, x_hook, start_size=64,
-                                             max_width=W - 160, max_lines=3)
-    draw_centered_text(draw, hook_lines, font_hook, y_start=160,
-                       img_width=W, colour=WHITE, line_spacing=20)
+    # ── Blog h1 (auto-shrink, left-aligned)
+    font_h1, h1_lines = auto_shrink_font(draw, blog_h1, start_size=44,
+                                         max_width=W - 160, max_lines=2)
+    y = 140
+    for line in h1_lines:
+        draw.text((80, y), line, font=font_h1, fill=TEXT_DARK)
+        bbox = draw.textbbox((0, 0), line, font=font_h1)
+        y += (bbox[3] - bbox[1]) + 12
+
+    # ── Bullet points
+    bullets = extract_bullets(blog_html, max_bullets=4)
+    font_bullet = load_font(32)
+    y = max(y + 20, 240)
+    bullet_max_w = W - 160
+
+    for bullet in bullets:
+        bullet_text = "• " + bullet
+        b_lines = wrap_text(draw, bullet_text, font_bullet, bullet_max_w)
+        for line in b_lines:
+            draw.text((100, y), line, font=font_bullet, fill=TEXT_DARK)
+            bbox = draw.textbbox((0, 0), line, font=font_bullet)
+            y += (bbox[3] - bbox[1]) + 12
+            if y > 780:
+                break
+        y += 20   # gap between bullets
+        if y > 780:
+            break
 
     # Rule above footer
     draw.rectangle([(80, 820), (W - 80, 823)], fill=CHAKRA_BLUE)
@@ -171,32 +225,45 @@ def make_x_header(blog_h1: str, slug: str, folder: str):
     print(f"  Saved: {path}")
 
 
-# ── Image 3 — Meme (1080×1080) ───────────────────────────────────────────────
+# ── Image 3 — Meme (1080×1080) — quote-box style ─────────────────────────────
 
 def make_meme(meme_top: str, meme_bottom: str, slug: str, folder: str):
     W, H = 1080, 1080
     DIVIDER_Y = 530
-    img = Image.new("RGB", (W, H), BG_DARK)
-    draw = ImageDraw.Draw(img)
 
-    # Bottom panel background
-    draw.rectangle([(0, DIVIDER_Y + 6), (W, H)], fill=BG_MID)
+    img = make_gradient_bg((W, H))
+    draw = ImageDraw.Draw(img)
 
     # Divider line
     draw.rectangle([(0, DIVIDER_Y), (W, DIVIDER_Y + 6)], fill=CHAKRA_BLUE)
 
     # ── Top panel ──
     font_label = load_font(28)
+
     label_top = "What they say:"
     bbox = draw.textbbox((0, 0), label_top, font=font_label)
-    draw.text(((W - (bbox[2] - bbox[0])) // 2, 60), label_top,
+    draw.text(((W - (bbox[2] - bbox[0])) // 2, 30), label_top,
               font=font_label, fill=CHAKRA_BLUE)
 
+    # Quote box (border only)
+    BOX_MARGIN = 60
+    BOX_TOP = 80
+    BOX_BOTTOM = 430
+    draw.rectangle(
+        [(BOX_MARGIN, BOX_TOP), (W - BOX_MARGIN, BOX_BOTTOM)],
+        outline=CHAKRA_BLUE, width=3
+    )
+
+    # meme_top_text inside the box, vertically centred
     top_text = meme_top or "Caste is a thing of the past."
-    font_top, top_lines = auto_shrink_font(draw, top_text, start_size=48,
-                                           max_width=W - 120, max_lines=3)
-    draw_centered_text(draw, top_lines, font_top, y_start=120,
-                       img_width=W, colour=WHITE, line_spacing=14)
+    font_top, top_lines = auto_shrink_font(draw, top_text, start_size=46,
+                                           max_width=W - BOX_MARGIN * 2 - 40,
+                                           max_lines=4)
+    line_h = draw.textbbox((0, 0), "Ag", font=font_top)[3] + 14
+    total_h = len(top_lines) * line_h
+    y_text = BOX_TOP + ((BOX_BOTTOM - BOX_TOP) - total_h) // 2
+    draw_centered_text(draw, top_lines, font_top, y_start=y_text,
+                       img_width=W, colour=TEXT_DARK, line_spacing=14)
 
     # ── Bottom panel ──
     label_bot = "What the evidence shows:"
@@ -205,10 +272,10 @@ def make_meme(meme_top: str, meme_bottom: str, slug: str, folder: str):
               font=font_label, fill=CHAKRA_BLUE)
 
     bot_text = meme_bottom or "Evidence tells a different story."
-    font_bot, bot_lines = auto_shrink_font(draw, bot_text, start_size=48,
-                                           max_width=W - 120, max_lines=3)
+    font_bot, bot_lines = auto_shrink_font(draw, bot_text, start_size=46,
+                                           max_width=W - 120, max_lines=4)
     draw_centered_text(draw, bot_lines, font_bot, y_start=DIVIDER_Y + 90,
-                       img_width=W, colour=WHITE, line_spacing=14)
+                       img_width=W, colour=TEXT_DARK, line_spacing=14)
 
     # Source footer
     font_src = load_font(22)
@@ -254,6 +321,7 @@ def generate_images():
     quote       = content.get("most_shareable_quote", "") or blog_h1
     meme_top    = content.get("meme_top_text", "")
     meme_bottom = content.get("meme_bottom_text", "")
+    blog_html   = content.get("blog_post_html", "")
 
     slug   = make_slug(blog_h1)
     folder = os.path.join("images", slug)
@@ -261,7 +329,7 @@ def generate_images():
     print(f"Output folder: ./{folder}/")
 
     make_quote_card(blog_h1, quote, slug, folder)
-    make_x_header(blog_h1, slug, folder)
+    make_x_header(blog_h1, blog_html, slug, folder)
     make_meme(meme_top, meme_bottom, slug, folder)
 
     # Archive a copy of final_output.json alongside the images
