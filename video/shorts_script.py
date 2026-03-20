@@ -15,7 +15,6 @@ from pydantic import BaseModel, ValidationError
 load_dotenv()
 
 API_KEY = os.getenv("API_KEY")
-PRODUCTION_SHEET = "production_sheet.json"
 
 
 # ── Pydantic schema ───────────────────────────────────────────────────────────
@@ -164,10 +163,15 @@ def strip_html(html: str) -> str:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def generate_script(input_file: str = "") -> None:
-    if not input_file:
+def generate_script(slug: str = None, input_file: str = None) -> None:
+    if input_file is None:
+        if slug is None:
+            sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+            from utils import get_latest_slug
+            slug = get_latest_slug(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "final_output"))
         _script_dir = os.path.dirname(os.path.abspath(__file__))
-        input_file = os.path.join(_script_dir, "..", "final_output.json")
+        input_file = os.path.join(_script_dir, "..", "final_output", f"{slug}.json")
+    production_sheet = f"production_sheet/{slug}.json" if slug else "production_sheet/default.json"
     print(f"Loading {input_file} …")
     with open(input_file, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -182,10 +186,13 @@ def generate_script(input_file: str = "") -> None:
     keywords = ", ".join(keyword_list[:8]) if keyword_list else ""
 
     blog_excerpt = strip_html(blog_post_html)[:1200]
-    slug = make_slug(blog_h1)
+    # Use slug from final_output meta if available, else derive from h1
+    if slug is None:
+        slug = make_slug(blog_h1)
 
     print(f"  blog_h1 : {blog_h1}")
     print(f"  slug    : {slug}")
+    production_sheet = f"production_sheet/{slug}.json"
 
     prompt = USER_TEMPLATE.format(
         blog_h1=blog_h1,
@@ -233,25 +240,21 @@ def generate_script(input_file: str = "") -> None:
     except ValidationError as e:
         print(f"  Pydantic validation error:\n{e}")
         print("  Saving raw JSON anyway for inspection …")
-        os.makedirs(os.path.dirname(os.path.abspath(PRODUCTION_SHEET)) or ".", exist_ok=True)
-        with open(PRODUCTION_SHEET, "w", encoding="utf-8") as f:
+        os.makedirs("production_sheet", exist_ok=True)
+        with open(production_sheet, "w", encoding="utf-8") as f:
             json.dump(sheet_dict, f, ensure_ascii=False, indent=2)
         sys.exit(1)
 
-    os.makedirs(os.path.dirname(os.path.abspath(PRODUCTION_SHEET)) or ".", exist_ok=True)
-    with open(PRODUCTION_SHEET, "w", encoding="utf-8") as f:
+    os.makedirs("production_sheet", exist_ok=True)
+    with open(production_sheet, "w", encoding="utf-8") as f:
         json.dump(sheet.model_dump(), f, ensure_ascii=False, indent=2)
 
     total_est = sum(s.estimated_duration_sec for s in sheet.segments)
     print(f"\n  Segments : {len(sheet.segments)}")
     print(f"  Est. duration : {total_est:.1f}s")
-    print(f"  Saved → {PRODUCTION_SHEET}")
+    print(f"  Saved → {production_sheet}")
 
 
 if __name__ == "__main__":
-    # Resolve default input path relative to this script's location,
-    # so it works from any working directory.
-    _script_dir = os.path.dirname(os.path.abspath(__file__))
-    _default_input = os.path.join(_script_dir, "..", "final_output.json")
-    input_file = sys.argv[1] if len(sys.argv) > 1 else _default_input
-    generate_script(input_file)
+    slug_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    generate_script(slug=slug_arg)

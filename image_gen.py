@@ -312,9 +312,11 @@ def make_meme(meme_top: str, meme_bottom: str, slug: str, folder: str):
 
 def update_social_output(folder: str, slug: str, quote: str,
                          meme_top: str, meme_bottom: str):
+    os.makedirs("social_output", exist_ok=True)
+    social_path = f"social_output/{slug}.json"
     existing = {}
-    if os.path.exists("social_output.json"):
-        with open("social_output.json", encoding="utf-8") as f:
+    if os.path.exists(social_path):
+        with open(social_path, encoding="utf-8") as f:
             existing = json.load(f)
     existing["social_images"] = {
         "quote_card": f"./{folder}/quote-{slug}.png",
@@ -324,15 +326,18 @@ def update_social_output(folder: str, slug: str, quote: str,
         "meme_top_text": meme_top,
         "meme_bottom_text": meme_bottom,
     }
-    with open("social_output.json", "w", encoding="utf-8") as f:
+    with open(social_path, "w", encoding="utf-8") as f:
         json.dump(existing, f, ensure_ascii=False, indent=2)
-    print("  Updated social_output.json → social_images block")
+    print(f"  Updated {social_path} → social_images block")
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
-def generate_images():
-    with open("final_output.json", encoding="utf-8") as f:
+def generate_images(slug: str = None):
+    if slug is None:
+        from utils import get_latest_slug
+        slug = get_latest_slug("final_output")
+    with open(f"final_output/{slug}.json", encoding="utf-8") as f:
         data = json.load(f)
 
     blog_h1     = data["title"]["blog_h1"]
@@ -342,7 +347,6 @@ def generate_images():
     meme_bottom = content.get("meme_bottom_text", "")
     blog_html   = content.get("blog_post_html", "")
 
-    slug   = make_slug(blog_h1)
     folder = os.path.join("images", slug)
     os.makedirs(folder, exist_ok=True)
     print(f"Output folder: ./{folder}/")
@@ -350,10 +354,6 @@ def generate_images():
     make_quote_card(blog_h1, quote, slug, folder)
     make_x_header(blog_h1, blog_html, slug, folder)
     make_meme(meme_top, meme_bottom, slug, folder)
-
-    # Archive a copy of final_output.json alongside the images
-    shutil.copy("final_output.json", os.path.join(folder, "final_output.json"))
-    print(f"  Copied final_output.json → ./{folder}/final_output.json")
 
     update_social_output(folder, slug, quote, meme_top, meme_bottom)
     print(f"\nDone — images + JSON saved to ./{folder}/")

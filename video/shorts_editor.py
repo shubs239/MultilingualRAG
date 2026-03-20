@@ -16,8 +16,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-PRODUCTION_SHEET = "production_sheet.json"
-OUTPUT_VIDEO = "output/final_short.mp4"
+def _resolve_sheet(slug):
+    if slug is None:
+        import glob as _glob
+        sheets = _glob.glob("production_sheet/*.json")
+        if not sheets:
+            raise FileNotFoundError("No production sheets found in production_sheet/")
+        slug = os.path.splitext(os.path.basename(max(sheets, key=os.path.getmtime)))[0]
+    return f"production_sheet/{slug}.json", f"output/{slug}.mp4", slug
 
 VIDEO_W = 1080
 VIDEO_H = 1920
@@ -283,13 +289,15 @@ def make_segment_clip(seg: dict, audio_info: dict):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def edit_video(sheet_file: str = PRODUCTION_SHEET) -> None:
+def edit_video(slug: str = None) -> None:
     import shutil
     import subprocess
     if not shutil.which("ffmpeg"):
         print("ERROR: ffmpeg not found. Install it first:")
         print("  macOS: brew install ffmpeg")
         sys.exit(1)
+
+    sheet_file, output_video, slug = _resolve_sheet(slug)
 
     print(f"Loading {sheet_file} …")
     with open(sheet_file, "r", encoding="utf-8") as f:
@@ -302,7 +310,6 @@ def edit_video(sheet_file: str = PRODUCTION_SHEET) -> None:
     # Resolve full_audio path — prefer production sheet, fall back to known location
     full_audio_path = sheet.get("audio", {}).get("full_audio") or "audio/full_audio.mp3"
     if not os.path.exists(full_audio_path):
-        # Try relative to script directory (when running from repo root)
         script_dir = os.path.dirname(os.path.abspath(__file__))
         alt = os.path.join(script_dir, "audio", "full_audio.mp3")
         if os.path.exists(alt):
@@ -320,11 +327,11 @@ def edit_video(sheet_file: str = PRODUCTION_SHEET) -> None:
     print("  Concatenating …")
     video = concatenate_videoclips(clips, method="compose")
 
-    os.makedirs(os.path.dirname(OUTPUT_VIDEO), exist_ok=True)
+    os.makedirs(os.path.dirname(output_video), exist_ok=True)
 
     # Step 1: write video-only track (no audio — MoviePy 2.x audio attachment
     # is unreliable for VideoClip-based clips; we mux with ffmpeg instead)
-    video_only_path = OUTPUT_VIDEO.replace(".mp4", "_noaudio.mp4")
+    video_only_path = output_video.replace(".mp4", "_noaudio.mp4")
     print(f"  Writing video track → {video_only_path} …")
     video.write_videofile(
         video_only_path,
@@ -346,7 +353,7 @@ def edit_video(sheet_file: str = PRODUCTION_SHEET) -> None:
             "-c:a", "aac",
             "-b:a", "192k",
             "-shortest",
-            OUTPUT_VIDEO,
+            output_video,
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
@@ -357,11 +364,11 @@ def edit_video(sheet_file: str = PRODUCTION_SHEET) -> None:
             print(f"  Audio muxed successfully.")
     else:
         print(f"  Warning: {full_audio_path} not found — keeping silent video")
-        os.rename(video_only_path, OUTPUT_VIDEO)
+        os.rename(video_only_path, output_video)
 
-    print(f"\n  Done. Output: {OUTPUT_VIDEO}")
+    print(f"\n  Done. Output: {output_video}")
 
 
 if __name__ == "__main__":
-    sheet_file = sys.argv[1] if len(sys.argv) > 1 else PRODUCTION_SHEET
-    edit_video(sheet_file)
+    slug_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    edit_video(slug_arg)

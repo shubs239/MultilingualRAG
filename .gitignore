@@ -176,19 +176,19 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# Output / generated files
-draft_output.json
-feedback_output.json
-final_output.json
-social_output.json
+# Output / generated files (now stored as {folder}/{slug}.json)
+draft_output/
+feedback_output/
+final_output/
+social_output/
 
 # Generated assets
 /images/
 video/audio/
 video/images/*
 !video/images/Caste-Free-India.png
-video/production_sheet.json
-video/final_short.mp4
+video/production_sheet/
+video/output/
 
 # Notebook + OS
 test.ipynb

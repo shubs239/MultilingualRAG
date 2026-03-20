@@ -19,8 +19,18 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "cgSgspJ2msm6clMCkdW9")
 API_KEY = os.getenv("API_KEY")
 
-PRODUCTION_SHEET = "video/production_sheet.json"
-AUDIO_DIR = "video/audio"
+AUDIO_DIR = "audio"
+
+
+def _resolve_sheet(slug):
+    if slug is None:
+        import glob as _glob
+        sheets = _glob.glob("production_sheet/*.json")
+        if not sheets:
+            raise FileNotFoundError("No production sheets found in production_sheet/")
+        slug = max(sheets, key=os.path.getmtime)
+        slug = os.path.splitext(os.path.basename(slug))[0]
+    return f"production_sheet/{slug}.json", slug
 
 
 # ── ElevenLabs ────────────────────────────────────────────────────────────────
@@ -117,7 +127,8 @@ def save_audio(audio_bytes: bytes, path: str, from_gemini: bool = False) -> None
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def generate_audio(sheet_file: str = PRODUCTION_SHEET) -> None:
+def generate_audio(slug: str = None) -> None:
+    sheet_file, slug = _resolve_sheet(slug)
     print(f"Loading {sheet_file} …")
     with open(sheet_file, "r", encoding="utf-8") as f:
         sheet = json.load(f)
@@ -222,5 +233,5 @@ def stitch_audio(segment_files: dict, output_path: str) -> None:
 
 
 if __name__ == "__main__":
-    sheet_file = sys.argv[1] if len(sys.argv) > 1 else PRODUCTION_SHEET
-    generate_audio(sheet_file)
+    slug_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    generate_audio(slug_arg)

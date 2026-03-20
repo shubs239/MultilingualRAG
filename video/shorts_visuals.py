@@ -22,8 +22,17 @@ MODEL_ID = "runware:400@3"
 IMAGE_WIDTH = 1080
 IMAGE_HEIGHT = 1920
 
-PRODUCTION_SHEET = "production_sheet.json"
 IMAGES_DIR = "images"
+
+
+def _resolve_sheet(slug):
+    if slug is None:
+        import glob as _glob
+        sheets = _glob.glob("production_sheet/*.json")
+        if not sheets:
+            raise FileNotFoundError("No production sheets found in production_sheet/")
+        slug = os.path.splitext(os.path.basename(max(sheets, key=os.path.getmtime)))[0]
+    return f"production_sheet/{slug}.json", slug
 
 # Branding image used for the final (sign-off) segment — no API call needed
 SIGNOFF_IMAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "Caste-Free-India.png")
@@ -111,7 +120,8 @@ def make_placeholder(local_path: str) -> None:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def generate_visuals(sheet_file: str = PRODUCTION_SHEET) -> None:
+def generate_visuals(slug: str = None) -> None:
+    sheet_file, slug = _resolve_sheet(slug)
     print(f"Loading {sheet_file} …")
     with open(sheet_file, "r", encoding="utf-8") as f:
         sheet = json.load(f)
@@ -168,5 +178,5 @@ def generate_visuals(sheet_file: str = PRODUCTION_SHEET) -> None:
 
 
 if __name__ == "__main__":
-    sheet_file = sys.argv[1] if len(sys.argv) > 1 else PRODUCTION_SHEET
-    generate_visuals(sheet_file)
+    slug_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    generate_visuals(slug_arg)

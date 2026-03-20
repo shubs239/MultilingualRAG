@@ -98,8 +98,11 @@ OUTPUT FORMAT — respond ONLY with valid JSON, no markdown code blocks:
 """
 
 
-def create_social_media_post():
-    with open("final_output.json", "r", encoding="utf-8") as f:
+def create_social_media_post(slug=None):
+    if slug is None:
+        from utils import get_latest_slug
+        slug = get_latest_slug("final_output")
+    with open(f"final_output/{slug}.json", "r", encoding="utf-8") as f:
         final_data = json.load(f)
 
     blog_html = final_data["content"]["blog_post_html"]
@@ -129,12 +132,22 @@ def create_social_media_post():
         "facebook": gemini_output.facebook.model_dump()
     }
 
-    with open("social_output.json", "w", encoding="utf-8") as f:
-        json.dump(social_output, f, ensure_ascii=False, indent=2)
-    print("Social media content saved to social_output.json")
+    os.makedirs("social_output", exist_ok=True)
+    social_path = f"social_output/{slug}.json"
+    # Merge with existing file (image_gen may have already written social_images)
+    existing = {}
+    if os.path.exists(social_path):
+        with open(social_path, encoding="utf-8") as f:
+            existing = json.load(f)
+    existing.update(social_output)
+    with open(social_path, "w", encoding="utf-8") as f:
+        json.dump(existing, f, ensure_ascii=False, indent=2)
+    print(f"Social media content saved to {social_path}")
 
     return social_output
 
 
 if __name__ == "__main__":
-    create_social_media_post()
+    import sys
+    slug_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    create_social_media_post(slug_arg)

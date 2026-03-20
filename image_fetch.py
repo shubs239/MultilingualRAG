@@ -246,7 +246,12 @@ def add_text_overlay(local_path: str, blog_h1: str) -> None:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def fetch_featured_image(input_file: str = "final_output.json") -> None:
+def fetch_featured_image(slug: str = None, input_file: str = None) -> None:
+    if input_file is None:
+        if slug is None:
+            from utils import get_latest_slug
+            slug = get_latest_slug("final_output")
+        input_file = f"final_output/{slug}.json"
     if not RUNWARE_API_KEY:
         raise EnvironmentError("RUNWARE_API_KEY not set in .env")
 
