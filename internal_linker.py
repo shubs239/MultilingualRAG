@@ -127,10 +127,15 @@ def insert_internal_link(html: str, para_idx: int, post_url: str, post_title: st
 
 # ── Main entry ────────────────────────────────────────────────────────────────
 
-def link_internal(input_file: str = "final_output.json") -> None:
+def link_internal(slug: str = None, input_file: str = None) -> None:
+    if input_file is None:
+        if slug is None:
+            from utils import get_latest_slug
+            slug = get_latest_slug("final_output")
+        input_file = f"final_output/{slug}.json"
     load_dotenv()
-    WP_USERNAME = os.getenv("WP_USERNAME", "pappu4946@gmail.com")
-    WP_PASSWORD = os.getenv("WP_PASSWORD", "August@*28")
+    WP_USERNAME = os.getenv("WP_USERNAME")
+    WP_PASSWORD = os.getenv("WP_PASSWORD")
 
     # Load final output
     with open(input_file, "r", encoding="utf-8") as f:

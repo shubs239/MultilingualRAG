@@ -7,6 +7,8 @@ import os
 import json
 from datetime import datetime, timezone
 
+from utils import get_latest_slug
+
 load_dotenv()
 api_key = os.getenv('API_KEY')
 client = genai.Client(api_key=api_key)
@@ -96,8 +98,10 @@ OUTPUT FORMAT — respond ONLY with valid JSON, no markdown code blocks:
 """
 
 
-def final_draft():
-    with open("feedback_output.json", "r", encoding="utf-8") as f:
+def final_draft(slug=None):
+    if slug is None:
+        slug = get_latest_slug("feedback_output")
+    with open(f"feedback_output/{slug}.json", "r", encoding="utf-8") as f:
         feedback_data = json.load(f)
 
     blog_html = feedback_data["content"]["blog_post_html"]
@@ -121,6 +125,7 @@ def final_draft():
     final_output = {
         "meta": {
             "script_stage": "final",
+            "slug": slug,
             "source_video_url": feedback_data["meta"].get("source_video_url", ""),
             "transcript_file": feedback_data["meta"].get("transcript_file", ""),
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -143,9 +148,11 @@ def final_draft():
         }
     }
 
-    with open("final_output.json", "w", encoding="utf-8") as f:
+    os.makedirs("final_output", exist_ok=True)
+    out_path = f"final_output/{slug}.json"
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(final_output, f, ensure_ascii=False, indent=2)
-    print("Final blog saved to final_output.json")
+    print(f"Final blog saved to {out_path}")
 
     return final_output
 

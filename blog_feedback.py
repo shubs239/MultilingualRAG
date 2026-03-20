@@ -6,6 +6,8 @@ from typing import List
 import os
 import json
 
+from utils import get_latest_slug
+
 load_dotenv()
 api_key = os.getenv('API_KEY')
 client = genai.Client(api_key=api_key)
@@ -56,8 +58,10 @@ score is 0-100 based on overall quality.
 """
 
 
-def first_feedback():
-    with open("draft_output.json", "r", encoding="utf-8") as f:
+def first_feedback(slug=None):
+    if slug is None:
+        slug = get_latest_slug("draft_output")
+    with open(f"draft_output/{slug}.json", "r", encoding="utf-8") as f:
         draft = json.load(f)
 
     blog_html = draft["content"]["blog_post_html"]
@@ -80,9 +84,11 @@ def first_feedback():
         "score": feedback_block.score
     }
 
-    with open("feedback_output.json", "w", encoding="utf-8") as f:
+    os.makedirs("feedback_output", exist_ok=True)
+    out_path = f"feedback_output/{slug}.json"
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(draft, f, ensure_ascii=False, indent=2)
-    print("Feedback saved to feedback_output.json")
+    print(f"Feedback saved to {out_path}")
 
     return draft
 

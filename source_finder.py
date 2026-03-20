@@ -159,7 +159,12 @@ def insert_book_unavailable_comment(html: str, paragraph_num: int, claim_text: s
 # Main orchestration
 # ---------------------------------------------------------------------------
 
-def process_claims(input_file: str = "final_output.json") -> None:
+def process_claims(slug: str = None, input_file: str = None) -> None:
+    if input_file is None:
+        if slug is None:
+            from utils import get_latest_slug
+            slug = get_latest_slug("final_output")
+        input_file = f"final_output/{slug}.json"
     print(f"Loading {input_file} …")
     with open(input_file, "r", encoding="utf-8") as f:
         data = json.load(f)

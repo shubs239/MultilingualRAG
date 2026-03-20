@@ -7,6 +7,7 @@ import os
 import json
 from datetime import datetime, timezone
 from fetch_caption import caption, get_captions_up_to_hour
+from utils import make_slug
 
 load_dotenv()
 api_key = os.getenv('API_KEY')
@@ -93,8 +94,8 @@ OUTPUT FORMAT — respond ONLY with valid JSON, no markdown code blocks:
 """
 
 
-def first_draft(link):
-    transcript = get_captions_up_to_hour(captions=caption(link=link), input_minutes=30)
+def first_draft(link, input_minutes: int = 60):
+    transcript = get_captions_up_to_hour(captions=caption(link=link), input_minutes=input_minutes)
 
     raw_response = client.models.generate_content(
         model="models/gemini-2.5-flash-lite",
@@ -111,9 +112,12 @@ def first_draft(link):
     blog_html = gemini_output.content.blog_post_html
     word_count = len(blog_html.split())
 
+    slug = make_slug(gemini_output.headlines.blog_h1)
+
     draft_output = {
         "meta": {
             "script_stage": "draft",
+            "slug": slug,
             "source_video_url": f"https://www.youtube.com/watch?v={link}",
             "transcript_file": "",
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -136,13 +140,17 @@ def first_draft(link):
         }
     }
 
-    with open("draft_output.json", "w", encoding="utf-8") as f:
+    os.makedirs("draft_output", exist_ok=True)
+    out_path = f"draft_output/{slug}.json"
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(draft_output, f, ensure_ascii=False, indent=2)
-    print("Draft saved to draft_output.json")
+    print(f"Draft saved to {out_path}")
 
-    return draft_output
+    return draft_output, slug
 
 
 if __name__ == "__main__":
-    link = input("Enter the YouTube video ID: ")
-    first_draft(link)
+    link = input("Enter the YouTube video ID: ").strip()
+    mins = input("Transcript length in minutes (default 60): ").strip()
+    input_minutes = int(mins) if mins else 60
+    first_draft(link, input_minutes)
