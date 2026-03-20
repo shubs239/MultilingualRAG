@@ -248,7 +248,16 @@ def edit_video(sheet_file: str = PRODUCTION_SHEET) -> None:
     from moviepy import concatenate_videoclips
 
     audio_info = sheet.get("audio", {}).get("segment_files", {})
-    full_audio_path = sheet.get("audio", {}).get("full_audio", "audio/full_audio.mp3")
+
+    # Resolve full_audio path — prefer production sheet, fall back to known location
+    full_audio_path = sheet.get("audio", {}).get("full_audio") or "audio/full_audio.mp3"
+    if not os.path.exists(full_audio_path):
+        # Try relative to script directory (when running from repo root)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        alt = os.path.join(script_dir, "audio", "full_audio.mp3")
+        if os.path.exists(alt):
+            full_audio_path = alt
+    print(f"  Audio path: {full_audio_path} (exists={os.path.exists(full_audio_path)})")
 
     segments = sheet["segments"]
     print(f"  Building {len(segments)} segment clips …")
