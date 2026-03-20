@@ -235,6 +235,7 @@ def make_segment_clip(seg: dict, audio_info: dict):
 
 def edit_video(sheet_file: str = PRODUCTION_SHEET) -> None:
     import shutil
+    import subprocess
     if not shutil.which("ffmpeg"):
         print("ERROR: ffmpeg not found. Install it first:")
         print("  macOS: brew install ffmpeg")
@@ -244,8 +245,7 @@ def edit_video(sheet_file: str = PRODUCTION_SHEET) -> None:
     with open(sheet_file, "r", encoding="utf-8") as f:
         sheet = json.load(f)
 
-    # MoviePy 2.x: import directly from moviepy, not moviepy.editor
-    from moviepy import AudioFileClip, concatenate_videoclips
+    from moviepy import concatenate_videoclips
 
     audio_info = sheet.get("audio", {}).get("segment_files", {})
     full_audio_path = sheet.get("audio", {}).get("full_audio", "audio/full_audio.mp3")
@@ -261,26 +261,45 @@ def edit_video(sheet_file: str = PRODUCTION_SHEET) -> None:
     print("  Concatenating …")
     video = concatenate_videoclips(clips, method="compose")
 
-    if os.path.exists(full_audio_path):
-        print(f"  Attaching audio: {full_audio_path}")
-        audio = AudioFileClip(full_audio_path)
-        if audio.duration > video.duration:
-            # MoviePy 2.x: subclipped instead of subclip
-            audio = audio.subclipped(0, video.duration)
-        video = video.with_audio(audio)  # MoviePy 2.x: with_audio instead of set_audio
-    else:
-        print(f"  Warning: {full_audio_path} not found — video will be silent")
-
     os.makedirs(os.path.dirname(OUTPUT_VIDEO), exist_ok=True)
-    print(f"  Writing {OUTPUT_VIDEO} …")
+
+    # Step 1: write video-only track (no audio — MoviePy 2.x audio attachment
+    # is unreliable for VideoClip-based clips; we mux with ffmpeg instead)
+    video_only_path = OUTPUT_VIDEO.replace(".mp4", "_noaudio.mp4")
+    print(f"  Writing video track → {video_only_path} …")
     video.write_videofile(
-        OUTPUT_VIDEO,
+        video_only_path,
         fps=FPS,
         codec="libx264",
-        audio_codec="aac",
+        audio=False,
         preset="medium",
         logger="bar",
     )
+
+    # Step 2: mux audio with ffmpeg
+    if os.path.exists(full_audio_path):
+        print(f"  Muxing audio ({full_audio_path}) with ffmpeg …")
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", video_only_path,
+            "-i", full_audio_path,
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-shortest",
+            OUTPUT_VIDEO,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"  ffmpeg error:\n{result.stderr[-500:]}")
+            print(f"  Keeping video-only file at {video_only_path}")
+        else:
+            os.remove(video_only_path)
+            print(f"  Audio muxed successfully.")
+    else:
+        print(f"  Warning: {full_audio_path} not found — keeping silent video")
+        os.rename(video_only_path, OUTPUT_VIDEO)
+
     print(f"\n  Done. Output: {OUTPUT_VIDEO}")
 
 
