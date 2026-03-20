@@ -15,9 +15,11 @@ final_blog = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(final_blog)
 
 link = input("Enter YouTube video ID: ").strip()
+mins = input("Transcript length in minutes (default 60): ").strip()
+input_minutes = int(mins) if mins else 60
 
 print("\n--- Stage 1: Generating draft ---")
-_, slug = first_draft(link)
+_, slug = first_draft(link, input_minutes)
 print(f"  Slug: {slug}")
 
 print("\n--- Stage 2: Running feedback ---")

@@ -7,7 +7,6 @@ Reads production_sheet.json, generates audio per segment via ElevenLabs
 import json
 import os
 import struct
-import sys
 import wave
 from io import BytesIO
 
@@ -233,5 +232,5 @@ def stitch_audio(segment_files: dict, output_path: str) -> None:
 
 
 if __name__ == "__main__":
-    slug_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    slug_arg = input("Enter slug (leave blank for latest): ").strip() or None
     generate_audio(slug_arg)

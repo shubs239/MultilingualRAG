@@ -148,6 +148,5 @@ def create_social_media_post(slug=None):
 
 
 if __name__ == "__main__":
-    import sys
-    slug_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    slug_arg = input("Enter slug (leave blank for latest): ").strip() or None
     create_social_media_post(slug_arg)

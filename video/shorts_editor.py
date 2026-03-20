@@ -370,5 +370,5 @@ def edit_video(slug: str = None) -> None:
 
 
 if __name__ == "__main__":
-    slug_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    slug_arg = input("Enter slug (leave blank for latest): ").strip() or None
     edit_video(slug_arg)

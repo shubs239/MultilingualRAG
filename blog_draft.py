@@ -94,8 +94,8 @@ OUTPUT FORMAT — respond ONLY with valid JSON, no markdown code blocks:
 """
 
 
-def first_draft(link):
-    transcript = get_captions_up_to_hour(captions=caption(link=link), input_minutes=56)
+def first_draft(link, input_minutes: int = 60):
+    transcript = get_captions_up_to_hour(captions=caption(link=link), input_minutes=input_minutes)
 
     raw_response = client.models.generate_content(
         model="models/gemini-2.5-flash-lite",
@@ -150,5 +150,7 @@ def first_draft(link):
 
 
 if __name__ == "__main__":
-    link = input("Enter the YouTube video ID: ")
-    first_draft(link)
+    link = input("Enter the YouTube video ID: ").strip()
+    mins = input("Transcript length in minutes (default 60): ").strip()
+    input_minutes = int(mins) if mins else 60
+    first_draft(link, input_minutes)
