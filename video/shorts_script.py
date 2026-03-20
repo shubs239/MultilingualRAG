@@ -15,7 +15,7 @@ from pydantic import BaseModel, ValidationError
 load_dotenv()
 
 API_KEY = os.getenv("API_KEY")
-PRODUCTION_SHEET = "video/production_sheet.json"
+PRODUCTION_SHEET = "production_sheet.json"
 
 
 # ── Pydantic schema ───────────────────────────────────────────────────────────
@@ -159,7 +159,10 @@ def strip_html(html: str) -> str:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def generate_script(input_file: str = "../final_output.json") -> None:
+def generate_script(input_file: str = "") -> None:
+    if not input_file:
+        _script_dir = os.path.dirname(os.path.abspath(__file__))
+        input_file = os.path.join(_script_dir, "..", "final_output.json")
     print(f"Loading {input_file} …")
     with open(input_file, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -192,7 +195,7 @@ def generate_script(input_file: str = "../final_output.json") -> None:
     print("  Calling Gemini for Hinglish script …")
     client = get_gemini()
     resp = client.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemini-2.5-flash-lite",
         contents=prompt,
         config={
             "system_instruction": SYSTEM_INSTRUCTION,
@@ -225,12 +228,12 @@ def generate_script(input_file: str = "../final_output.json") -> None:
     except ValidationError as e:
         print(f"  Pydantic validation error:\n{e}")
         print("  Saving raw JSON anyway for inspection …")
-        os.makedirs("video", exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.abspath(PRODUCTION_SHEET)) or ".", exist_ok=True)
         with open(PRODUCTION_SHEET, "w", encoding="utf-8") as f:
             json.dump(sheet_dict, f, ensure_ascii=False, indent=2)
         sys.exit(1)
 
-    os.makedirs("video", exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(PRODUCTION_SHEET)) or ".", exist_ok=True)
     with open(PRODUCTION_SHEET, "w", encoding="utf-8") as f:
         json.dump(sheet.model_dump(), f, ensure_ascii=False, indent=2)
 
@@ -241,6 +244,9 @@ def generate_script(input_file: str = "../final_output.json") -> None:
 
 
 if __name__ == "__main__":
-    import sys
-    input_file = sys.argv[1] if len(sys.argv) > 1 else "../final_output.json"
+    # Resolve default input path relative to this script's location,
+    # so it works from any working directory.
+    _script_dir = os.path.dirname(os.path.abspath(__file__))
+    _default_input = os.path.join(_script_dir, "..", "final_output.json")
+    input_file = sys.argv[1] if len(sys.argv) > 1 else _default_input
     generate_script(input_file)
