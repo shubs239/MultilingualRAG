@@ -10,7 +10,6 @@ Requires MoviePy 2.x (moviepy.editor no longer exists in 2.x).
 import json
 import os
 import sys
-import textwrap
 
 import numpy as np
 from dotenv import load_dotenv
