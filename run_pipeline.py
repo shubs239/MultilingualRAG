@@ -51,8 +51,8 @@ if run_video == "y":
     video_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "video")
     if video_dir not in sys.path:
         sys.path.insert(0, video_dir)
-    from shorts_pipeline import generate_short
-    generate_short(slug=slug)
+    from .video import shorts_pipeline
+    shorts_pipeline.generate_short(slug=slug)
 
 # ── Manual follow-up steps ─────────────────────────────────────────────────────
 print("\nNext steps:")
