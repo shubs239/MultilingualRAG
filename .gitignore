@@ -184,7 +184,10 @@ social_output.json
 
 # Generated assets
 images/
-video/
+video/audio/
+video/images/
+video/production_sheet.json
+video/final_short.mp4
 
 # Notebook + OS
 test.ipynb
