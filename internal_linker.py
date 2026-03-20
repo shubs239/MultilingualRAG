@@ -182,7 +182,7 @@ def link_internal(input_file: str = "final_output.json") -> None:
     # indices 1..len(para) → individual paragraphs
     # indices after that   → published posts
     all_docs = [current_text] + para_texts + post_texts
-    matrix, vocab = build_tfidf_matrix(all_docs)
+    matrix, _ = build_tfidf_matrix(all_docs)
 
     current_vec = matrix[0]
     para_vecs   = matrix[1 : 1 + len(para_texts)]
