@@ -99,7 +99,12 @@ For each segment produce:
 - elevenlabs: {stability 0.2-0.35, similarity_boost 0.7-0.85, style 0.7-0.9, use_speaker_boost: true, emotion_tag: "(with shock)" style}
 - gemini_tts: {style_instruction: "[Style: angry, fast, rising pitch]" style}
 - visual: {image_prompt, effect, zoom_from, zoom_to, overlay_type, overlay_text, overlay_attribution}
-  - image_prompt: "Editorial illustration of [concrete visual scene], flat design, muted earthy tones, Indian context, minimalist, NO TEXT"
+  - image_prompt: describe ONLY the raw visual scene — real people, emotions, objects, setting.
+    Make it visceral and emotionally charged to match the segment's rage/shock/sadness.
+    Examples: "Dalit family outside crumbling hut, child crying, exhausted mother, harsh sunlight",
+    "Angry protesting crowd holding banners, police barricade, dust and tension",
+    "Close-up of a caste certificate document, red stamp, bureaucrat's hand, dimly lit office".
+    Do NOT write "Editorial illustration" or any style suffixes — just the scene.
   - zoom_from/zoom_to: 1.0 to max 1.4
 """
 
@@ -136,7 +141,7 @@ Output a single JSON object matching this schema exactly:
         "style_instruction": "[Style: shocked, fast, rising pitch]"
       }},
       "visual": {{
-        "image_prompt": "Editorial illustration of ..., flat design, muted earthy tones, Indian context, minimalist, NO TEXT",
+        "image_prompt": "[visceral scene description only — e.g. 'Dalit farmer kneeling in dry cracked field, despair on face, scorching sky']",
         "effect": "ken_burns_zoom_in",
         "zoom_from": 1.0,
         "zoom_to": 1.3,

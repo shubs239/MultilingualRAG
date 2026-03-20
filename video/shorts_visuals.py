@@ -22,13 +22,21 @@ MODEL_ID = "runware:400@3"
 IMAGE_WIDTH = 1080
 IMAGE_HEIGHT = 1920
 
-PRODUCTION_SHEET = "video/production_sheet.json"
-IMAGES_DIR = "video/images"
+PRODUCTION_SHEET = "production_sheet.json"
+IMAGES_DIR = "images"
+
+# Appended to every image_prompt so all frames share the same visual style.
+# Gemini writes only the scene; we enforce the look here.
+STYLE_SUFFIX = (
+    "cinematic photography, dramatic lighting, high contrast, muted desaturated tones, "
+    "dark shadows, gritty realism, Indian setting, photorealistic, NO TEXT, no watermarks"
+)
 
 NEGATIVE_PROMPT = (
     "text, letters, words, typography, fonts, writing, calligraphy, "
     "signs, labels, captions, watermarks, numbers, digits, headlines, "
-    "titles, subtitles, inscriptions, banners, graffiti"
+    "titles, subtitles, inscriptions, banners, graffiti, "
+    "cartoon, illustration, flat design, anime, painting, sketch, editorial"
 )
 
 # Solid-colour placeholder (dark saffron gradient-ish) used on Runware failure
@@ -110,10 +118,12 @@ def generate_visuals(sheet_file: str = PRODUCTION_SHEET) -> None:
 
     for seg in segments:
         seg_id = seg["id"]
-        prompt = seg["visual"]["image_prompt"]
+        raw_prompt = seg["visual"]["image_prompt"]
+        # Append shared style suffix so every frame has the same cinematic look
+        prompt = f"{raw_prompt}, {STYLE_SUFFIX}"
         out_path = f"{IMAGES_DIR}/segment-{seg_id}.jpg"
 
-        print(f"\n  Segment {seg_id}: {prompt[:60]}…")
+        print(f"\n  Segment {seg_id}: {raw_prompt[:60]}…")
 
         success = False
         for attempt in range(1, 3):  # try twice
