@@ -132,56 +132,107 @@ def make_visual_clip(image_path: str, duration: float, effect: str,
 
 
 # ── Text overlay (Pillow → numpy → ImageClip) ─────────────────────────────────
+# Both overlays sit at the bottom of the frame and are content-sized:
+# text wraps at max 90% width, attribution immediately on the next line,
+# bar height grows to fit — never a fixed fraction of the screen.
+
+PAD_X = 32   # horizontal padding inside the bar
+PAD_Y = 16   # vertical padding above/below text
+LINE_GAP = 6  # gap between citation line(s) and attribution
+
+
+def _measure_wrapped_lines(draw, text: str, font, max_px: int) -> list[str]:
+    """Word-wrap text to fit within max_px, return list of lines."""
+    words = text.split()
+    lines, current = [], ""
+    for word in words:
+        test = (current + " " + word).strip()
+        if draw.textbbox((0, 0), test, font=font)[2] <= max_px:
+            current = test
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines or [""]
+
 
 def render_citation_overlay(text: str, attribution: str | None) -> np.ndarray:
     from PIL import Image, ImageDraw
-    bar_h = int(VIDEO_H * 0.12)
-    bar_y = VIDEO_H - bar_h
+
+    font_cite = load_font(32)
+    font_attr = load_font(24)
+    max_text_w = VIDEO_W - PAD_X * 2
+
+    # Measure on a throw-away draw so we know bar height before creating the canvas
+    tmp = Image.new("RGBA", (VIDEO_W, 10))
+    d = ImageDraw.Draw(tmp)
+    cite_lines = _measure_wrapped_lines(d, text, font_cite, max_text_w)
+    cite_line_h = d.textbbox((0, 0), "Ag", font=font_cite)[3]  # single-line height
+    attr_line_h = d.textbbox((0, 0), "Ag", font=font_attr)[3] if attribution else 0
+
+    content_h = (cite_line_h + LINE_GAP) * len(cite_lines)
+    if attribution:
+        content_h += attr_line_h + LINE_GAP
+    bar_h = content_h + PAD_Y * 2 + 3  # 3px for saffron rule
 
     overlay = Image.new("RGBA", (VIDEO_W, VIDEO_H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
-    draw.rectangle([(0, bar_y), (VIDEO_W, VIDEO_H)], fill=(0, 0, 0, 190))
+
+    bar_y = VIDEO_H - bar_h
+    draw.rectangle([(0, bar_y), (VIDEO_W, VIDEO_H)], fill=(0, 0, 0, 200))
     draw.rectangle([(0, bar_y), (VIDEO_W, bar_y + 3)], fill=(*SAFFRON, 255))
 
-    font_cite = load_font(34)
-    font_attr = load_font(26)
-    PAD = 36
-    wrapped = textwrap.fill(text, width=44)
-    y = bar_y + 14
-    draw.text((PAD, y), wrapped, font=font_cite, fill=(*WHITE, 230))
+    y = bar_y + 3 + PAD_Y
+    for line in cite_lines:
+        draw.text((PAD_X, y), line, font=font_cite, fill=(*WHITE, 235))
+        y += cite_line_h + LINE_GAP
 
     if attribution:
-        bbox = draw.textbbox((0, 0), wrapped, font=font_cite)
-        y += (bbox[3] - bbox[1]) + 8
-        draw.text((PAD, y), attribution, font=font_attr, fill=(*SAFFRON, 200))
+        draw.text((PAD_X, y), attribution, font=font_attr, fill=(*SAFFRON, 210))
 
     return np.array(overlay)
 
 
 def render_quote_overlay(text: str, attribution: str | None) -> np.ndarray:
     from PIL import Image, ImageDraw
+
+    font_q = load_font(36)
+    font_a = load_font(26)
+    box_w = int(VIDEO_W * 0.88)
+    max_text_w = box_w - PAD_X * 2 - 10
+
+    tmp = Image.new("RGBA", (box_w, 10))
+    d = ImageDraw.Draw(tmp)
+    q_lines = _measure_wrapped_lines(d, text, font_q, max_text_w)
+    q_line_h = d.textbbox((0, 0), "Ag", font=font_q)[3]
+    attr_line_h = d.textbbox((0, 0), "Ag", font=font_a)[3] if attribution else 0
+
+    content_h = (q_line_h + LINE_GAP) * len(q_lines)
+    if attribution:
+        content_h += attr_line_h + LINE_GAP
+    box_h = content_h + PAD_Y * 2
+
+    box_x = (VIDEO_W - box_w) // 2
+    # Position in lower third so it doesn't dominate the frame
+    box_y = VIDEO_H - box_h - int(VIDEO_H * 0.08)
+
     overlay = Image.new("RGBA", (VIDEO_W, VIDEO_H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
-
-    box_w = int(VIDEO_W * 0.88)
-    box_x = (VIDEO_W - box_w) // 2
-    box_y = int(VIDEO_H * 0.35)
-    box_h = int(VIDEO_H * 0.28)
-
     draw.rounded_rectangle(
         [(box_x, box_y), (box_x + box_w, box_y + box_h)],
-        radius=18, fill=(0, 0, 0, 200),
+        radius=14, fill=(0, 0, 0, 210),
     )
-    draw.rectangle([(box_x, box_y), (box_x + 6, box_y + box_h)], fill=(*SAFFRON, 255))
+    draw.rectangle([(box_x, box_y), (box_x + 5, box_y + box_h)], fill=(*SAFFRON, 255))
 
-    font_q = load_font(40)
-    font_a = load_font(28)
-    PAD = 28
-    wrapped = textwrap.fill(text, width=38)
-    draw.text((box_x + PAD + 10, box_y + PAD), wrapped, font=font_q, fill=(*WHITE, 240))
+    y = box_y + PAD_Y
+    for line in q_lines:
+        draw.text((box_x + PAD_X + 8, y), line, font=font_q, fill=(*WHITE, 240))
+        y += q_line_h + LINE_GAP
+
     if attribution:
-        draw.text((box_x + PAD + 10, box_y + box_h - 50), attribution,
-                  font=font_a, fill=(*SAFFRON, 220))
+        draw.text((box_x + PAD_X + 8, y), attribution, font=font_a, fill=(*SAFFRON, 220))
 
     return np.array(overlay)
 
