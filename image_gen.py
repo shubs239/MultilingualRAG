@@ -120,7 +120,7 @@ def extract_bullets(html: str, max_bullets: int = 4) -> list[str]:
         text = re.sub(r'<[^>]+>', '', item).strip()
         text = re.sub(r'\s+', ' ', text)
         if text and len(text) > 10:          # skip navigation/short items
-            clean.append(text[:120])         # cap per-bullet length
+            clean.append(text)               # keep full sentence — no mid-word cut
         if len(clean) == max_bullets:
             break
     return clean or ["See blog for details."]
@@ -130,6 +130,8 @@ def extract_bullets(html: str, max_bullets: int = 4) -> list[str]:
 
 def make_quote_card(blog_h1: str, quote: str, slug: str, folder: str):
     W, H = 1080, 1080
+    RULE_TOP    = 120
+    RULE_BOTTOM = 820
     img = make_gradient_bg((W, H))
     draw = ImageDraw.Draw(img)
 
@@ -141,16 +143,20 @@ def make_quote_card(blog_h1: str, quote: str, slug: str, folder: str):
               font=font_site, fill=CHAKRA_BLUE)
 
     # Top rule
-    hline(draw, 120, W, CHAKRA_BLUE, thickness=4)
+    hline(draw, RULE_TOP, W, CHAKRA_BLUE, thickness=4)
 
-    # Quote (auto-shrink, max 3 lines)
+    # Quote — auto-shrink, then vertically center between the two rules
     font_q, q_lines = auto_shrink_font(draw, quote, start_size=52,
                                        max_width=W - 120, max_lines=3)
-    draw_centered_text(draw, q_lines, font_q, y_start=200, img_width=W,
+    line_h_q = draw.textbbox((0, 0), "Ag", font=font_q)[3] + 16
+    total_text_h = len(q_lines) * line_h_q
+    zone_h = RULE_BOTTOM - RULE_TOP
+    y_start = RULE_TOP + (zone_h - total_text_h) // 2
+    draw_centered_text(draw, q_lines, font_q, y_start=y_start, img_width=W,
                        colour=TEXT_DARK, line_spacing=16)
 
     # Bottom rule
-    hline(draw, 820, W, CHAKRA_BLUE, thickness=4)
+    hline(draw, RULE_BOTTOM, W, CHAKRA_BLUE, thickness=4)
 
     # Blog h1 (truncate at 80 chars)
     h1_display = blog_h1 if len(blog_h1) <= 80 else blog_h1[:80] + "…"
@@ -200,18 +206,21 @@ def make_x_header(blog_h1: str, blog_html: str, slug: str, folder: str):
     y = max(y + 20, 240)
     bullet_max_w = W - 160
 
+    BULLET_BOTTOM = 780   # must finish before the footer rule
     for bullet in bullets:
         bullet_text = "• " + bullet
         b_lines = wrap_text(draw, bullet_text, font_bullet, bullet_max_w)
+        # Calculate total height this bullet needs
+        line_h = draw.textbbox((0, 0), "Ag", font=font_bullet)[3] + 12
+        bullet_h = len(b_lines) * line_h + 20   # +20 for gap after
+        # Skip the bullet entirely if it won't fit — no partial bullets
+        if y + bullet_h > BULLET_BOTTOM:
+            break
         for line in b_lines:
             draw.text((100, y), line, font=font_bullet, fill=TEXT_DARK)
             bbox = draw.textbbox((0, 0), line, font=font_bullet)
             y += (bbox[3] - bbox[1]) + 12
-            if y > 780:
-                break
         y += 20   # gap between bullets
-        if y > 780:
-            break
 
     # Rule above footer
     draw.rectangle([(80, 820), (W - 80, 823)], fill=CHAKRA_BLUE)
@@ -225,64 +234,74 @@ def make_x_header(blog_h1: str, blog_html: str, slug: str, folder: str):
     print(f"  Saved: {path}")
 
 
-# ── Image 3 — Meme (1080×1080) — quote-box style ─────────────────────────────
+# ── Image 3 — Meme — template-based (blank left panels + reaction photo right) ─
+
+MEME_TEMPLATE = "./image.png"
+# Fraction of image width that is the blank text zone on the left of each panel
+MEME_TEXT_FRACTION = 0.43
+
+
+def _draw_panel_text(draw: ImageDraw.ImageDraw, label: str, body: str,
+                     x0: int, y0: int, x1: int, y1: int,
+                     font_label, text_color: str, label_color: str) -> None:
+    """Draw label + body text vertically centred inside the panel rect."""
+    PAD = 18
+    max_w = x1 - x0 - PAD * 2
+
+    # Label
+    draw.text((x0 + PAD, y0 + PAD), label, font=font_label, fill=label_color)
+    label_h = draw.textbbox((0, 0), label, font=font_label)[3] + 6
+
+    # Body — auto-shrink to fit panel
+    body_zone_h = (y1 - y0) - PAD * 2 - label_h
+    font_body, body_lines = auto_shrink_font(
+        draw, body, start_size=38, max_width=max_w, max_lines=4, min_size=22
+    )
+    line_h = draw.textbbox((0, 0), "Ag", font=font_body)[3] + 10
+    total_body_h = len(body_lines) * line_h
+    y = y0 + PAD + label_h + max(0, (body_zone_h - total_body_h) // 2)
+    for line in body_lines:
+        draw.text((x0 + PAD, y), line, font=font_body, fill=text_color)
+        bbox = draw.textbbox((0, 0), line, font=font_body)
+        y += (bbox[3] - bbox[1]) + 10
+
 
 def make_meme(meme_top: str, meme_bottom: str, slug: str, folder: str):
-    W, H = 1080, 1080
-    DIVIDER_Y = 530
-
-    img = make_gradient_bg((W, H))
+    # Load and scale template — keep aspect ratio, set width = 1080
+    template = Image.open(MEME_TEMPLATE).convert("RGB")
+    TW, TH = template.size
+    W = 1080
+    H = int(TH * W / TW)
+    img = template.resize((W, H), Image.LANCZOS)
     draw = ImageDraw.Draw(img)
 
-    # Divider line
-    draw.rectangle([(0, DIVIDER_Y), (W, DIVIDER_Y + 6)], fill=CHAKRA_BLUE)
+    TEXT_X1  = int(W * MEME_TEXT_FRACTION)   # right edge of blank text zone
+    PANEL_H  = H // 2                         # height of one panel
 
-    # ── Top panel ──
-    font_label = load_font(28)
-
-    label_top = "What they say:"
-    bbox = draw.textbbox((0, 0), label_top, font=font_label)
-    draw.text(((W - (bbox[2] - bbox[0])) // 2, 30), label_top,
-              font=font_label, fill=CHAKRA_BLUE)
-
-    # Quote box (border only)
-    BOX_MARGIN = 60
-    BOX_TOP = 80
-    BOX_BOTTOM = 430
-    draw.rectangle(
-        [(BOX_MARGIN, BOX_TOP), (W - BOX_MARGIN, BOX_BOTTOM)],
-        outline=CHAKRA_BLUE, width=3
-    )
-
-    # meme_top_text inside the box, vertically centred
+    font_label = load_font(22)
     top_text = meme_top or "Caste is a thing of the past."
-    font_top, top_lines = auto_shrink_font(draw, top_text, start_size=46,
-                                           max_width=W - BOX_MARGIN * 2 - 40,
-                                           max_lines=4)
-    line_h = draw.textbbox((0, 0), "Ag", font=font_top)[3] + 14
-    total_h = len(top_lines) * line_h
-    y_text = BOX_TOP + ((BOX_BOTTOM - BOX_TOP) - total_h) // 2
-    draw_centered_text(draw, top_lines, font_top, y_start=y_text,
-                       img_width=W, colour=TEXT_DARK, line_spacing=14)
-
-    # ── Bottom panel ──
-    label_bot = "What the evidence shows:"
-    bbox = draw.textbbox((0, 0), label_bot, font=font_label)
-    draw.text(((W - (bbox[2] - bbox[0])) // 2, DIVIDER_Y + 26), label_bot,
-              font=font_label, fill=CHAKRA_BLUE)
-
     bot_text = meme_bottom or "Evidence tells a different story."
-    font_bot, bot_lines = auto_shrink_font(draw, bot_text, start_size=46,
-                                           max_width=W - 120, max_lines=4)
-    draw_centered_text(draw, bot_lines, font_bot, y_start=DIVIDER_Y + 90,
-                       img_width=W, colour=TEXT_DARK, line_spacing=14)
 
-    # Source footer
-    font_src = load_font(22)
-    src = "Source: castefreeindia.com"
+    # Top panel text area
+    _draw_panel_text(draw,
+                     label="What they say:", body=top_text,
+                     x0=0, y0=0, x1=TEXT_X1, y1=PANEL_H,
+                     font_label=font_label,
+                     text_color=TEXT_DARK, label_color=CHAKRA_BLUE)
+
+    # Bottom panel text area
+    _draw_panel_text(draw,
+                     label="What the evidence shows:", body=bot_text,
+                     x0=0, y0=PANEL_H, x1=TEXT_X1, y1=H,
+                     font_label=font_label,
+                     text_color=TEXT_DARK, label_color=CHAKRA_BLUE)
+
+    # Thin source line at very bottom, right-aligned inside text zone
+    font_src = load_font(18)
+    src = "castefreeindia.com"
     bbox = draw.textbbox((0, 0), src, font=font_src)
-    draw.text(((W - (bbox[2] - bbox[0])) // 2, H - 50), src,
-              font=font_src, fill=MUTED)
+    draw.text((TEXT_X1 - (bbox[2] - bbox[0]) - 8, H - 24),
+              src, font=font_src, fill=MUTED)
 
     path = os.path.join(folder, f"meme-{slug}.png")
     img.save(path)

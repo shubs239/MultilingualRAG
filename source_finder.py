@@ -9,10 +9,10 @@ from bs4 import BeautifulSoup, Comment
 GOVERNMENT_DOMAINS = ["ncrb.gov.in", "data.gov.in", "pib.gov.in", "mospi.gov.in", ".gov.in"]
 NEWS_DOMAINS = [
     "thehindu.com", "indianexpress.com", "scroll.in", "thewire.in",
-    "bahujanpress.com", "newslaundry.com",
+    "www.bhaskar.com/", "newslaundry.com",
 ]
 RESEARCH_DOMAINS = [
-    "scholar.google", "jstor.org", "epw.in", "shodhganga.inflibnet.ac.in",
+    "scholar.google", "jstor.org", "epw.in"
 ]
 
 # Map types that Gemini might emit → search strategy

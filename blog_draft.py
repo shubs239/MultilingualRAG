@@ -1,6 +1,8 @@
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from pydantic import BaseModel
+from typing import List
 import os
 import json
 from datetime import datetime, timezone
@@ -9,6 +11,28 @@ from fetch_caption import caption, get_captions_up_to_hour
 load_dotenv()
 api_key = os.getenv('API_KEY')
 client = genai.Client(api_key=api_key)
+
+
+class Claim(BaseModel):
+    claim: str
+    type: str
+    suggested_search: str
+    insert_after_paragraph: int
+
+class Headlines(BaseModel):
+    blog_h1: str
+    blog_seo_title: str
+
+class Content(BaseModel):
+    blog_post_html: str
+
+class Sourcing(BaseModel):
+    claims_needing_citation: List[Claim]
+
+class DraftOutput(BaseModel):
+    headlines: Headlines
+    content: Content
+    sourcing: Sourcing
 
 sys_instruct_initial = """You are an expert content writer for castefreeindia.com — an anti-caste, evidence-based blog rooted in Ambedkarite and Phule-Periyar thought.
 
@@ -70,27 +94,21 @@ OUTPUT FORMAT — respond ONLY with valid JSON, no markdown code blocks:
 
 
 def first_draft(link):
-    transcript = get_captions_up_to_hour(captions=caption(link=link), input_minutes=60)
+    transcript = get_captions_up_to_hour(captions=caption(link=link), input_minutes=30)
 
     raw_response = client.models.generate_content(
         model="models/gemini-2.5-flash-lite",
         config=types.GenerateContentConfig(
             system_instruction=sys_instruct_initial,
+            response_mime_type="application/json",
+            response_schema=DraftOutput,
             max_output_tokens=50024),
         contents=[f"This is the transcript: {transcript}. Output: Article of at least 2000 words in English in HTML without style section."]
     )
 
-    response_text = raw_response.text.strip()
-    # Strip markdown code fences if present
-    if response_text.startswith("```"):
-        response_text = response_text.split("```", 2)[1]
-        if response_text.startswith("json"):
-            response_text = response_text[4:]
-        response_text = response_text.rsplit("```", 1)[0].strip()
+    gemini_output = DraftOutput.model_validate_json(raw_response.text)
 
-    gemini_output = json.loads(response_text)
-
-    blog_html = gemini_output.get("content", {}).get("blog_post_html", "")
+    blog_html = gemini_output.content.blog_post_html
     word_count = len(blog_html.split())
 
     draft_output = {
@@ -102,8 +120,8 @@ def first_draft(link):
             "word_count": word_count
         },
         "headlines": {
-            "blog_h1": gemini_output.get("headlines", {}).get("blog_h1", ""),
-            "blog_seo_title": gemini_output.get("headlines", {}).get("blog_seo_title", "")
+            "blog_h1": gemini_output.headlines.blog_h1,
+            "blog_seo_title": gemini_output.headlines.blog_seo_title
         },
         "content": {
             "blog_post_html": blog_html
@@ -114,7 +132,7 @@ def first_draft(link):
             "score": 0
         },
         "sourcing": {
-            "claims_needing_citation": gemini_output.get("sourcing", {}).get("claims_needing_citation", [])
+            "claims_needing_citation": [c.model_dump() for c in gemini_output.sourcing.claims_needing_citation]
         }
     }
 

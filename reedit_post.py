@@ -3,11 +3,35 @@ import os
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from pydantic import BaseModel
+from typing import List
 from datetime import datetime, timezone
 
 load_dotenv()
 api_key = os.getenv('API_KEY')
 client = genai.Client(api_key=api_key)
+
+
+class XContent(BaseModel):
+    hook: str
+    thread: List[str]
+
+class RedditContent(BaseModel):
+    title: str
+    post: str
+
+class InstagramContent(BaseModel):
+    caption_line1: str
+    caption_full: str
+
+class FacebookContent(BaseModel):
+    post: str
+
+class SocialOutput(BaseModel):
+    x: XContent
+    reddit: RedditContent
+    instagram: InstagramContent
+    facebook: FacebookContent
 
 sys_instruct = """You are a social media content strategist for castefreeindia.com — an anti-caste, evidence-based blog.
 
@@ -85,18 +109,13 @@ def create_social_media_post():
         model="models/gemini-flash-lite-latest",
         config=types.GenerateContentConfig(
             system_instruction=sys_instruct,
+            response_mime_type="application/json",
+            response_schema=SocialOutput,
             max_output_tokens=20024),
         contents=[f"Blog title: {blog_h1}\n\nBlog content HTML: {blog_html}\n\nOutput: Social media posts in JSON format as described."]
     )
 
-    response_text = raw_response.text.strip()
-    if response_text.startswith("```"):
-        response_text = response_text.split("```", 2)[1]
-        if response_text.startswith("json"):
-            response_text = response_text[4:]
-        response_text = response_text.rsplit("```", 1)[0].strip()
-
-    gemini_output = json.loads(response_text)
+    gemini_output = SocialOutput.model_validate_json(raw_response.text)
 
     social_output = {
         "meta": {
@@ -104,10 +123,10 @@ def create_social_media_post():
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "source_post_title": blog_h1
         },
-        "x": gemini_output.get("x", {"hook": "", "thread": []}),
-        "reddit": gemini_output.get("reddit", {"title": "", "post": ""}),
-        "instagram": gemini_output.get("instagram", {"caption_line1": "", "caption_full": ""}),
-        "facebook": gemini_output.get("facebook", {"post": ""})
+        "x": gemini_output.x.model_dump(),
+        "reddit": gemini_output.reddit.model_dump(),
+        "instagram": gemini_output.instagram.model_dump(),
+        "facebook": gemini_output.facebook.model_dump()
     }
 
     with open("social_output.json", "w", encoding="utf-8") as f:

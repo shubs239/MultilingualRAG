@@ -1,6 +1,8 @@
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from pydantic import BaseModel
+from typing import List
 import os
 import json
 from datetime import datetime, timezone
@@ -8,6 +10,33 @@ from datetime import datetime, timezone
 load_dotenv()
 api_key = os.getenv('API_KEY')
 client = genai.Client(api_key=api_key)
+
+
+class Claim(BaseModel):
+    claim: str
+    type: str
+    suggested_search: str
+    insert_after_paragraph: int
+
+class Title(BaseModel):
+    blog_h1: str
+    blog_seo_title: str
+
+class FinalContent(BaseModel):
+    blog_post_html: str
+    meta_description: str
+    keyword_list: List[str]
+    most_shareable_quote: str
+    meme_top_text: str
+    meme_bottom_text: str
+
+class Sourcing(BaseModel):
+    claims_needing_citation: List[Claim]
+
+class FinalOutput(BaseModel):
+    title: Title
+    content: FinalContent
+    sourcing: Sourcing
 
 sys_instruct_final = """You are a Technical Editor & SEO Optimizer for castefreeindia.com — an anti-caste, evidence-based blog.
 
@@ -78,20 +107,15 @@ def final_draft():
         model="models/gemini-flash-lite-latest",
         config=types.GenerateContentConfig(
             system_instruction=sys_instruct_final,
+            response_mime_type="application/json",
+            response_schema=FinalOutput,
             max_output_tokens=100024),
         contents=[f"This is the article HTML: {blog_html}\n\nThis is the feedback: {json.dumps(feedback_block)}\n\nOutput: Revised article with all feedback implemented, in JSON format as described."]
     )
 
-    response_text = raw_response.text.strip()
-    if response_text.startswith("```"):
-        response_text = response_text.split("```", 2)[1]
-        if response_text.startswith("json"):
-            response_text = response_text[4:]
-        response_text = response_text.rsplit("```", 1)[0].strip()
+    gemini_output = FinalOutput.model_validate_json(raw_response.text)
 
-    gemini_output = json.loads(response_text)
-
-    blog_html_final = gemini_output.get("content", {}).get("blog_post_html", "")
+    blog_html_final = gemini_output.content.blog_post_html
     word_count = len(blog_html_final.split())
 
     final_output = {
@@ -103,19 +127,19 @@ def final_draft():
             "word_count": word_count
         },
         "title": {
-            "blog_h1": gemini_output.get("title", {}).get("blog_h1", ""),
-            "blog_seo_title": gemini_output.get("title", {}).get("blog_seo_title", "")
+            "blog_h1": gemini_output.title.blog_h1,
+            "blog_seo_title": gemini_output.title.blog_seo_title
         },
         "content": {
             "blog_post_html": blog_html_final,
-            "meta_description": gemini_output.get("content", {}).get("meta_description", ""),
-            "keyword_list": gemini_output.get("content", {}).get("keyword_list", []),
-            "most_shareable_quote": gemini_output.get("content", {}).get("most_shareable_quote", ""),
-            "meme_top_text": gemini_output.get("content", {}).get("meme_top_text", ""),
-            "meme_bottom_text": gemini_output.get("content", {}).get("meme_bottom_text", ""),
+            "meta_description": gemini_output.content.meta_description,
+            "keyword_list": gemini_output.content.keyword_list,
+            "most_shareable_quote": gemini_output.content.most_shareable_quote,
+            "meme_top_text": gemini_output.content.meme_top_text,
+            "meme_bottom_text": gemini_output.content.meme_bottom_text,
         },
         "sourcing": {
-            "claims_needing_citation": gemini_output.get("sourcing", {}).get("claims_needing_citation", [])
+            "claims_needing_citation": [c.model_dump() for c in gemini_output.sourcing.claims_needing_citation]
         }
     }
 

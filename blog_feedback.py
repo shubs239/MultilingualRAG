@@ -1,12 +1,20 @@
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from pydantic import BaseModel
+from typing import List
 import os
 import json
 
 load_dotenv()
 api_key = os.getenv('API_KEY')
 client = genai.Client(api_key=api_key)
+
+
+class FeedbackOutput(BaseModel):
+    issues_found: List[str]
+    suggestions: List[str]
+    score: int
 
 sys_instruct_feedback = """You are an SEO Editor & Content Strategist for an anti-caste, evidence-based blog.
 
@@ -58,23 +66,18 @@ def first_feedback():
         model="models/gemini-flash-lite-latest",
         config=types.GenerateContentConfig(
             system_instruction=sys_instruct_feedback,
+            response_mime_type="application/json",
+            response_schema=FeedbackOutput,
             max_output_tokens=20024),
         contents=[f"This is the blog post HTML: {blog_html}. Output: Feedback in JSON format as described."]
     )
 
-    response_text = raw_response.text.strip()
-    if response_text.startswith("```"):
-        response_text = response_text.split("```", 2)[1]
-        if response_text.startswith("json"):
-            response_text = response_text[4:]
-        response_text = response_text.rsplit("```", 1)[0].strip()
-
-    feedback_block = json.loads(response_text)
+    feedback_block = FeedbackOutput.model_validate_json(raw_response.text)
 
     draft["feedback"] = {
-        "issues_found": feedback_block.get("issues_found", []),
-        "suggestions": feedback_block.get("suggestions", []),
-        "score": feedback_block.get("score", 0)
+        "issues_found": feedback_block.issues_found,
+        "suggestions": feedback_block.suggestions,
+        "score": feedback_block.score
     }
 
     with open("feedback_output.json", "w", encoding="utf-8") as f:
