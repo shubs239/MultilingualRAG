@@ -3,6 +3,9 @@ import sys
 from blog_draft import first_draft
 from blog_feedback import first_feedback
 from source_finder import process_claims
+from image_fetch import fetch_featured_image
+from image_gen import generate_images
+from internal_linker import link_internal
 
 # Load "final blog.py" (has a space — can't use normal import) // Why?
 #
@@ -24,7 +27,16 @@ final_blog.final_draft()
 print("\n--- Stage 4: Finding sources ---")
 process_claims()
 
-print("\nDone. Check final_output.json.")
+print("\n--- Stage 5: Fetching featured image ---")
+fetch_featured_image()
+
+print("\n--- Stage 6: Generating social images ---")
+generate_images()
+
+print("\n--- Stage 7: Inserting internal links ---")
+link_internal()
+
+print("\nDone. Check final_output.json and social_output.json.")
 print("Next steps:")
 print("  python wordpress_api.py   — post to WordPress as draft")
 print("  python reedit_post.py     — generate social media content")

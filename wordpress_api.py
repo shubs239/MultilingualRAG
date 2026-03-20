@@ -1,5 +1,9 @@
 import requests
 import json
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Load final output from pipeline
 with open("final_output.json", "r", encoding="utf-8") as file:
@@ -7,9 +11,11 @@ with open("final_output.json", "r", encoding="utf-8") as file:
 
 # Step 1: Get JWT Token
 auth_url = "https://castefreeindia.com/wp-json/api/v1/token"
+WP_USERNAME = os.getenv("WP_USERNAME", "pappu4946@gmail.com")
+WP_PASSWORD = os.getenv("WP_PASSWORD", "August@*28")
 auth_data = {
-    "username": "pappu4946@gmail.com",
-    "password": "August@*28",
+    "username": WP_USERNAME,
+    "password": WP_PASSWORD,
 }
 edit = False
 # Authenticate to get token
@@ -30,11 +36,39 @@ else:
 post_url = "https://castefreeindia.com/wp-json/wp/v2/posts/"
 new_post_url = "https://castefreeindia.com/wp-json/wp/v2/posts"
 #get_url ="https://castefreeindia.com/wp-json/wp/v2/posts/1058"
+def upload_featured_image(token, local_path):
+    if not os.path.exists(local_path):
+        print(f"  [media] File not found: {local_path}")
+        return None
+    filename = os.path.basename(local_path)
+    ext = filename.rsplit(".", 1)[-1].lower()
+    mime = "image/jpeg" if ext in ("jpg", "jpeg") else "image/png"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Disposition": f'attachment; filename="{filename}"',
+        "Content-Type": mime,
+    }
+    media_url = "https://castefreeindia.com/wp-json/wp/v2/media"
+    with open(local_path, "rb") as f:
+        r = requests.post(media_url, headers=headers, data=f)
+    if r.status_code in (200, 201):
+        media_id = r.json().get("id")
+        print(f"  [media] Uploaded → ID {media_id}")
+        return media_id
+    print(f"  [media] Upload failed {r.status_code}: {r.text[:200]}")
+    return None
+
+
 post_data = {
     "title": final_data["title"]["blog_seo_title"],
     "content": final_data["content"]["blog_post_html"],
     "status": "draft",
 }
+featured_path = final_data.get("featured_image", {}).get("local_path")
+if featured_path:
+    media_id = upload_featured_image(token, featured_path)
+    if media_id:
+        post_data["featured_media"] = media_id
 # saved_token = open('token.txt', 'r')
 # token = saved_token.read()
 
@@ -42,6 +76,8 @@ headers_post = {
     "Content-Type": "application/json",
     "Authorization": f"Bearer {token}",
 }
+
+
 def get_post(get_url, header):
     response = requests.get(url=get_url, headers=header)
     print(response.status_code)
