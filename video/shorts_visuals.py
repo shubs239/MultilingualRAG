@@ -25,6 +25,9 @@ IMAGE_HEIGHT = 1920
 PRODUCTION_SHEET = "production_sheet.json"
 IMAGES_DIR = "images"
 
+# Branding image used for the final (sign-off) segment — no API call needed
+SIGNOFF_IMAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "Caste-Free-India.png")
+
 # Appended to every image_prompt so all frames share the same visual style.
 # Gemini writes only the scene; we enforce the look here.
 STYLE_SUFFIX = (
@@ -115,9 +118,22 @@ def generate_visuals(sheet_file: str = PRODUCTION_SHEET) -> None:
 
     os.makedirs(IMAGES_DIR, exist_ok=True)
     segments = sheet["segments"]
+    last_seg_id = segments[-1]["id"]
 
     for seg in segments:
         seg_id = seg["id"]
+
+        # Last segment always uses the branding sign-off image — no API call
+        if seg_id == last_seg_id:
+            if os.path.exists(SIGNOFF_IMAGE):
+                seg["visual"]["image_file"] = SIGNOFF_IMAGE
+                print(f"\n  Segment {seg_id} (sign-off): using branding image → {SIGNOFF_IMAGE}")
+            else:
+                print(f"\n  Segment {seg_id} (sign-off): WARNING — branding image not found at {SIGNOFF_IMAGE}")
+                make_placeholder(f"{IMAGES_DIR}/segment-{seg_id}.jpg")
+                seg["visual"]["image_file"] = f"{IMAGES_DIR}/segment-{seg_id}.jpg"
+            continue
+
         raw_prompt = seg["visual"]["image_prompt"]
         # Append shared style suffix so every frame has the same cinematic look
         prompt = f"{raw_prompt}, {STYLE_SUFFIX}"

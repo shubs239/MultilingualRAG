@@ -183,9 +183,10 @@ final_output.json
 social_output.json
 
 # Generated assets
-images/
+/images/
 video/audio/
-video/images/
+video/images/*
+!video/images/Caste-Free-India.png
 video/production_sheet.json
 video/final_short.mp4
 
