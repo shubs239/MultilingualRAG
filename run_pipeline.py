@@ -1,6 +1,5 @@
 import importlib.util
 import os
-import sys
 
 from blog_draft import first_draft
 from blog_feedback import first_feedback
@@ -50,10 +49,10 @@ print(f"  social_output/{slug}.json")
 # ── Optional: YouTube Shorts video ────────────────────────────────────────────
 run_video = input("\nGenerate YouTube Shorts video now? (y/n): ").strip().lower()
 if run_video == "y":
-    video_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "video")
-    if video_dir not in sys.path:
-        sys.path.insert(0, video_dir)
-    import shorts_pipeline
+    _sp_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "video", "shorts_pipeline.py")
+    _sp_spec = importlib.util.spec_from_file_location("shorts_pipeline", _sp_path)
+    shorts_pipeline = importlib.util.module_from_spec(_sp_spec)
+    _sp_spec.loader.exec_module(shorts_pipeline)
     shorts_pipeline.generate_short(slug=slug)
 
 # ── Manual follow-up steps ─────────────────────────────────────────────────────
