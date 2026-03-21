@@ -18,8 +18,8 @@ RUNWARE_API_KEY = os.getenv("RUNWARE_API_KEY")
 RUNWARE_API_URL = "https://api.runware.ai/v1"
 MODEL_ID = "runware:400@3"
 
-IMAGE_WIDTH = 1080
-IMAGE_HEIGHT = 1920
+IMAGE_WIDTH = 1200 # Runware doesn't support 9:16 vertical yet, so we generate 1200x624 and crop later in editing
+IMAGE_HEIGHT = 624 # Runware doesn't support 9:16 vertical yet, so we generate 1200x624 and crop later in editing
 
 IMAGES_DIR = "images"
 
