@@ -21,17 +21,19 @@ MODEL_ID = "runware:400@3"
 IMAGE_WIDTH = 1200 # Runware doesn't support 9:16 vertical yet, so we generate 1200x624 and crop later in editing
 IMAGE_HEIGHT = 624 # Runware doesn't support 9:16 vertical yet, so we generate 1200x624 and crop later in editing
 
-IMAGES_DIR = "images"
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+IMAGES_DIR = os.path.join(_SCRIPT_DIR, "images")
 
 
 def _resolve_sheet(slug):
+    _ps_dir = os.path.join(_SCRIPT_DIR, "production_sheet")
     if slug is None:
         import glob as _glob
-        sheets = _glob.glob("production_sheet/*.json")
+        sheets = _glob.glob(os.path.join(_ps_dir, "*.json"))
         if not sheets:
             raise FileNotFoundError("No production sheets found in production_sheet/")
         slug = os.path.splitext(os.path.basename(max(sheets, key=os.path.getmtime)))[0]
-    return f"production_sheet/{slug}.json", slug
+    return os.path.join(_ps_dir, f"{slug}.json"), slug
 
 # Branding image used for the final (sign-off) segment — no API call needed
 SIGNOFF_IMAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images", "Caste-Free-India.png")
@@ -139,14 +141,15 @@ def generate_visuals(slug: str = None) -> None:
                 print(f"\n  Segment {seg_id} (sign-off): using branding image → {SIGNOFF_IMAGE}")
             else:
                 print(f"\n  Segment {seg_id} (sign-off): WARNING — branding image not found at {SIGNOFF_IMAGE}")
-                make_placeholder(f"{IMAGES_DIR}/segment-{seg_id}.jpg")
-                seg["visual"]["image_file"] = f"{IMAGES_DIR}/segment-{seg_id}.jpg"
+                placeholder_path = os.path.join(IMAGES_DIR, f"{slug}-segment-{seg_id}.jpg")
+                make_placeholder(placeholder_path)
+                seg["visual"]["image_file"] = placeholder_path
             continue
 
         raw_prompt = seg["visual"]["image_prompt"]
         # Append shared style suffix so every frame has the same cinematic look
         prompt = f"{raw_prompt}, {STYLE_SUFFIX}"
-        out_path = f"{IMAGES_DIR}/segment-{seg_id}.jpg"
+        out_path = os.path.join(IMAGES_DIR, f"{slug}-segment-{seg_id}.jpg")
 
         print(f"\n  Segment {seg_id}: {raw_prompt[:60]}…")
 

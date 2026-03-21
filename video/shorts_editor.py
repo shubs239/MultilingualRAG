@@ -16,14 +16,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
 def _resolve_sheet(slug):
+    _ps_dir = os.path.join(_SCRIPT_DIR, "production_sheet")
     if slug is None:
         import glob as _glob
-        sheets = _glob.glob("production_sheet/*.json")
+        sheets = _glob.glob(os.path.join(_ps_dir, "*.json"))
         if not sheets:
             raise FileNotFoundError("No production sheets found in production_sheet/")
         slug = os.path.splitext(os.path.basename(max(sheets, key=os.path.getmtime)))[0]
-    return f"production_sheet/{slug}.json", f"output/{slug}.mp4", slug
+    sheet_path = os.path.join(_ps_dir, f"{slug}.json")
+    output_path = os.path.join(_SCRIPT_DIR, "output", f"{slug}.mp4")
+    return sheet_path, output_path, slug
 
 VIDEO_W = 1080
 VIDEO_H = 1920
@@ -308,12 +314,13 @@ def edit_video(slug: str = None) -> None:
     audio_info = sheet.get("audio", {}).get("segment_files", {})
 
     # Resolve full_audio path — prefer production sheet, fall back to known location
-    full_audio_path = sheet.get("audio", {}).get("full_audio") or "audio/full_audio.mp3"
-    if not os.path.exists(full_audio_path):
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        alt = os.path.join(script_dir, "audio", "full_audio.mp3")
+    full_audio_path = sheet.get("audio", {}).get("full_audio")
+    if not full_audio_path or not os.path.exists(full_audio_path):
+        alt = os.path.join(_SCRIPT_DIR, "audio", f"{slug}-full_audio.mp3")
         if os.path.exists(alt):
             full_audio_path = alt
+        elif not full_audio_path:
+            full_audio_path = alt  # let the warning below trigger
     print(f"  Audio path: {full_audio_path} (exists={os.path.exists(full_audio_path)})")
 
     segments = sheet["segments"]

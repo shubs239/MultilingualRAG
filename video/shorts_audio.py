@@ -18,18 +18,20 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "cgSgspJ2msm6clMCkdW9")
 API_KEY = os.getenv("API_KEY")
 
-AUDIO_DIR = "audio"
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+AUDIO_DIR = os.path.join(_SCRIPT_DIR, "audio")
 
 
 def _resolve_sheet(slug):
+    _ps_dir = os.path.join(_SCRIPT_DIR, "production_sheet")
     if slug is None:
         import glob as _glob
-        sheets = _glob.glob("production_sheet/*.json")
+        sheets = _glob.glob(os.path.join(_ps_dir, "*.json"))
         if not sheets:
             raise FileNotFoundError("No production sheets found in production_sheet/")
         slug = max(sheets, key=os.path.getmtime)
         slug = os.path.splitext(os.path.basename(slug))[0]
-    return f"production_sheet/{slug}.json", slug
+    return os.path.join(_ps_dir, f"{slug}.json"), slug
 
 
 # ── ElevenLabs ────────────────────────────────────────────────────────────────
@@ -144,7 +146,7 @@ def generate_audio(slug: str = None) -> None:
 
     for seg in segments:
         seg_id = seg["id"]
-        out_path = f"{AUDIO_DIR}/segment-{seg_id}.mp3"
+        out_path = os.path.join(AUDIO_DIR, f"{slug}-segment-{seg_id}.mp3")
         print(f"\n  Segment {seg_id}: {seg['emotion']} — {seg['estimated_duration_sec']:.0f}s est.")
 
         audio_bytes = None
@@ -199,7 +201,7 @@ def generate_audio(slug: str = None) -> None:
             cursor += dur
 
     # Stitch full audio
-    full_audio_path = f"{AUDIO_DIR}/full_audio.mp3"
+    full_audio_path = os.path.join(AUDIO_DIR, f"{slug}-full_audio.mp3")
     stitch_audio(segment_files, full_audio_path)
 
     sheet["audio"] = {

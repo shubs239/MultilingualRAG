@@ -171,7 +171,8 @@ def generate_script(slug: str = None, input_file: str = None) -> None:
             slug = get_latest_slug(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "final_output"))
         _script_dir = os.path.dirname(os.path.abspath(__file__))
         input_file = os.path.join(_script_dir, "..", "final_output", f"{slug}.json")
-    production_sheet = f"production_sheet/{slug}.json" if slug else "production_sheet/default.json"
+    _script_dir_ss = os.path.dirname(os.path.abspath(__file__))
+    production_sheet = os.path.join(_script_dir_ss, "production_sheet", f"{slug}.json") if slug else os.path.join(_script_dir_ss, "production_sheet", "default.json")
     print(f"Loading {input_file} …")
     with open(input_file, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -192,7 +193,8 @@ def generate_script(slug: str = None, input_file: str = None) -> None:
 
     print(f"  blog_h1 : {blog_h1}")
     print(f"  slug    : {slug}")
-    production_sheet = f"production_sheet/{slug}.json"
+    _script_dir_ss = os.path.dirname(os.path.abspath(__file__))
+    production_sheet = os.path.join(_script_dir_ss, "production_sheet", f"{slug}.json")
 
     prompt = USER_TEMPLATE.format(
         blog_h1=blog_h1,
@@ -240,12 +242,12 @@ def generate_script(slug: str = None, input_file: str = None) -> None:
     except ValidationError as e:
         print(f"  Pydantic validation error:\n{e}")
         print("  Saving raw JSON anyway for inspection …")
-        os.makedirs("production_sheet", exist_ok=True)
+        os.makedirs(os.path.dirname(production_sheet), exist_ok=True)
         with open(production_sheet, "w", encoding="utf-8") as f:
             json.dump(sheet_dict, f, ensure_ascii=False, indent=2)
         sys.exit(1)
 
-    os.makedirs("production_sheet", exist_ok=True)
+    os.makedirs(os.path.dirname(production_sheet), exist_ok=True)
     with open(production_sheet, "w", encoding="utf-8") as f:
         json.dump(sheet.model_dump(), f, ensure_ascii=False, indent=2)
 
