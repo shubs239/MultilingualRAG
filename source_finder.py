@@ -9,10 +9,10 @@ from bs4 import BeautifulSoup, Comment
 GOVERNMENT_DOMAINS = ["ncrb.gov.in", "data.gov.in", "pib.gov.in", "mospi.gov.in", ".gov.in"]
 NEWS_DOMAINS = [
     "thehindu.com", "indianexpress.com", "scroll.in", "thewire.in",
-    "www.bhaskar.com/", "newslaundry.com",
+    "bhaskar.com", "newslaundry.com",
 ]
 RESEARCH_DOMAINS = [
-    "scholar.google", "jstor.org", "epw.in"
+    "scholar.google", "jstor.org", "epw.in", "britannica.com", "researchgate.net", "academia.edu", "books.google"
 ]
 
 # Map types that Gemini might emit → search strategy
@@ -63,7 +63,7 @@ def search_duckduckgo(query: str, preferred_domains: list[str]) -> str | None:
     Falls back to the first result if no preferred domain matches.
     """
     # Domains that are useless as citation sources
-    BLOCKLIST = ["baidu.com", "quora.com", "youtube.com", "reddit.com", "facebook.com"]
+    BLOCKLIST = ["baidu.com", "quora.com", "youtube.com", "reddit.com", "facebook.com","wikipedia.org"]
 
     try:
         try:
