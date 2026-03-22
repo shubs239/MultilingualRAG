@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-INSTAGRAM_BUSINESS_ACCOUNT_ID = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID")
+FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID")
 FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN")
 WP_USERNAME = os.getenv("WP_USERNAME")
 WP_PASSWORD = os.getenv("WP_PASSWORD")
@@ -19,6 +19,35 @@ def parse_ist_to_unix(dt_str):
     dt = datetime.strptime(dt_str.strip(), "%Y-%m-%d %H:%M")
     dt_ist = ist.localize(dt)
     return int(dt_ist.timestamp())
+
+
+def get_page_token(user_or_page_token, page_id):
+    """Exchange any token for the Page's own Access Token."""
+    r = requests.get(
+        f"https://graph.facebook.com/v19.0/{page_id}",
+        params={"fields": "access_token", "access_token": user_or_page_token},
+    )
+    token = r.json().get("access_token")
+    if not token:
+        print(f"  [ig] Could not get Page Access Token: {r.text[:200]}")
+    return token
+
+
+def get_instagram_account_id(page_token, page_id):
+    """Look up the Instagram Business Account ID linked to the Facebook Page."""
+    r = requests.get(
+        f"https://graph.facebook.com/v19.0/{page_id}",
+        params={"fields": "instagram_business_account", "access_token": page_token},
+    )
+    ig_account = r.json().get("instagram_business_account", {})
+    ig_id = ig_account.get("id")
+    if not ig_id:
+        print(f"  [ig] No Instagram Business Account linked to this Facebook Page.")
+        print(f"  [ig] Response: {r.text[:300]}")
+        print("  [ig] Make sure your Instagram account is: (1) a Business/Creator account, (2) linked to this Facebook Page.")
+    else:
+        print(f"  [ig] Instagram Business Account ID: {ig_id}")
+    return ig_id
 
 
 def get_wp_token():
@@ -72,6 +101,14 @@ def post_to_instagram(slug, schedule_dt_str=None):
         print(f"  [ig] Quote card image not found at: {quote_path}")
         return
 
+    # Get Page Access Token and resolve Instagram Business Account ID from the Page
+    page_token = get_page_token(FACEBOOK_PAGE_ACCESS_TOKEN, FACEBOOK_PAGE_ID)
+    if not page_token:
+        return
+    ig_id = get_instagram_account_id(page_token, FACEBOOK_PAGE_ID)
+    if not ig_id:
+        return
+
     # Upload quote card to WordPress to get a public URL (IG requires public URL)
     wp_token = get_wp_token()
     if not wp_token:
@@ -80,14 +117,14 @@ def post_to_instagram(slug, schedule_dt_str=None):
     if not image_url:
         return
 
-    base_url = f"https://graph.facebook.com/v19.0/{INSTAGRAM_BUSINESS_ACCOUNT_ID}"
+    base_url = f"https://graph.facebook.com/v19.0/{ig_id}"
 
     # Step 1 — Create media container
     container_params = {
         "image_url": image_url,
         "caption": caption,
         "media_type": "IMAGE",
-        "access_token": FACEBOOK_PAGE_ACCESS_TOKEN,
+        "access_token": page_token,
     }
 
     if schedule_dt_str:
@@ -112,7 +149,7 @@ def post_to_instagram(slug, schedule_dt_str=None):
         f"{base_url}/media_publish",
         params={
             "creation_id": creation_id,
-            "access_token": FACEBOOK_PAGE_ACCESS_TOKEN,
+            "access_token": page_token,
         },
     )
     if r2.status_code in (200, 201):
