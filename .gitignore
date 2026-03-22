@@ -206,3 +206,16 @@ myenv/bin/numpy-config
 myenv/bin/pygmentize
 myenv/bin/tqdm
 myenv/share/
+
+# Blogs source data — never push (contains unpublished content)
+Blogs data/
+
+# Root-level stray folders (artifacts from pre-fix runs; kept as safety net)
+/audio/
+/output/
+/production_sheet/
+
+# venv binaries added by new packages
+myenv/bin/httpx
+myenv/bin/imageio_download_bin
+myenv/bin/imageio_remove_bin

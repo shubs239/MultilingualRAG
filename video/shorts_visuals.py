@@ -16,10 +16,10 @@ load_dotenv()
 
 RUNWARE_API_KEY = os.getenv("RUNWARE_API_KEY")
 RUNWARE_API_URL = "https://api.runware.ai/v1"
-MODEL_ID = "runware:400@3"
+MODEL_ID = "runware:108@1"
 
-IMAGE_WIDTH = 1200 # Runware doesn't support 9:16 vertical yet, so we generate 1200x624 and crop later in editing
-IMAGE_HEIGHT = 624 # Runware doesn't support 9:16 vertical yet, so we generate 1200x624 and crop later in editing
+IMAGE_WIDTH = 1080   # native 9:16 vertical for YouTube Shorts
+IMAGE_HEIGHT = 1920  # native 9:16 vertical for YouTube Shorts
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 IMAGES_DIR = os.path.join(_SCRIPT_DIR, "images")
@@ -42,14 +42,18 @@ SIGNOFF_IMAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images
 # Gemini writes only the scene; we enforce the look here.
 STYLE_SUFFIX = (
     "cinematic photography, dramatic lighting, high contrast, muted desaturated tones, "
-    "dark shadows, gritty realism, Indian setting, photorealistic, NO TEXT, no watermarks"
+    "dark shadows, gritty realism, Indian subcontinent setting, South Asian people, "
+    "Hindu temples, Indian villages, traditional Indian clothing, Dalit community, "
+    "photorealistic, NO TEXT, no watermarks"
 )
 
 NEGATIVE_PROMPT = (
     "text, letters, words, typography, fonts, writing, calligraphy, "
     "signs, labels, captions, watermarks, numbers, digits, headlines, "
     "titles, subtitles, inscriptions, banners, graffiti, "
-    "cartoon, illustration, flat design, anime, painting, sketch, editorial"
+    "cartoon, illustration, flat design, anime, painting, sketch, editorial, "
+    "ancient Egypt, Egyptian pyramids, pharaohs, hieroglyphs, Greek columns, "
+    "Roman architecture, Middle Eastern, Arabic, Norse, European medieval, Western"
 )
 
 # Solid-colour placeholder (dark saffron gradient-ish) used on Runware failure
