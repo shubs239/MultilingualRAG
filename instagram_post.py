@@ -48,7 +48,12 @@ def upload_image_to_wp(token, local_path):
     return None
 
 
-def post_to_instagram(slug, scheduled_dt_str):
+def post_to_instagram(slug, schedule_dt_str=None):
+    """
+    Post quote card + Instagram caption via Meta Graph API.
+    schedule_dt_str: 'YYYY-MM-DD HH:MM' IST — if None, publishes immediately.
+    Note: Instagram scheduling requires time to be 10 min–30 days in the future.
+    """
     social_path = f"social_output/{slug}.json"
     if not os.path.exists(social_path):
         print(f"  [ig] social_output/{slug}.json not found. Run reedit_post.py and image_gen.py first.")
@@ -67,9 +72,7 @@ def post_to_instagram(slug, scheduled_dt_str):
         print(f"  [ig] Quote card image not found at: {quote_path}")
         return
 
-    unix_ts = parse_ist_to_unix(scheduled_dt_str)
-
-    # Upload quote card to WordPress to get a public URL
+    # Upload quote card to WordPress to get a public URL (IG requires public URL)
     wp_token = get_wp_token()
     if not wp_token:
         return
@@ -80,17 +83,24 @@ def post_to_instagram(slug, scheduled_dt_str):
     base_url = f"https://graph.facebook.com/v19.0/{INSTAGRAM_BUSINESS_ACCOUNT_ID}"
 
     # Step 1 — Create media container
-    r1 = requests.post(
-        f"{base_url}/media",
-        params={
-            "image_url": image_url,
-            "caption": caption,
-            "media_type": "IMAGE",
-            "published": "false",
-            "scheduled_publish_time": unix_ts,
-            "access_token": FACEBOOK_PAGE_ACCESS_TOKEN,
-        },
-    )
+    container_params = {
+        "image_url": image_url,
+        "caption": caption,
+        "media_type": "IMAGE",
+        "access_token": FACEBOOK_PAGE_ACCESS_TOKEN,
+    }
+
+    if schedule_dt_str:
+        unix_ts = parse_ist_to_unix(schedule_dt_str)
+        container_params["published"] = "false"
+        container_params["scheduled_publish_time"] = unix_ts
+        action = f"Scheduling for {schedule_dt_str} IST"
+    else:
+        action = "Publishing now"
+
+    print(f"  [ig] {action}...")
+
+    r1 = requests.post(f"{base_url}/media", params=container_params)
     if r1.status_code not in (200, 201):
         print(f"  [ig] Container creation failed {r1.status_code}: {r1.text[:300]}")
         return
@@ -107,12 +117,19 @@ def post_to_instagram(slug, scheduled_dt_str):
     )
     if r2.status_code in (200, 201):
         publish_id = r2.json().get("id")
-        print(f"  [ig] Published successfully → Publish ID: {publish_id}")
+        if schedule_dt_str:
+            print(f"  [ig] Scheduled successfully → Publish ID: {publish_id}")
+        else:
+            print(f"  [ig] Published successfully → Publish ID: {publish_id}")
     else:
         print(f"  [ig] Publish failed {r2.status_code}: {r2.text[:300]}")
 
 
 if __name__ == "__main__":
     slug = input("Enter slug: ").strip()
-    scheduled_dt = input("Enter scheduled datetime IST (YYYY-MM-DD HH:MM): ").strip()
-    post_to_instagram(slug, scheduled_dt)
+    mode = input("Publish now or schedule? (now/schedule): ").strip().lower()
+    if mode == "schedule":
+        scheduled_dt = input("Enter scheduled datetime IST (YYYY-MM-DD HH:MM): ").strip()
+        post_to_instagram(slug, scheduled_dt)
+    else:
+        post_to_instagram(slug)

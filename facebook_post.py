@@ -19,7 +19,11 @@ def parse_ist_to_unix(dt_str):
     return int(dt_ist.timestamp())
 
 
-def post_to_facebook(slug, scheduled_dt_str):
+def post_to_facebook(slug, schedule_dt_str=None):
+    """
+    Post meme image + Facebook caption to Page.
+    schedule_dt_str: 'YYYY-MM-DD HH:MM' IST — if None, publishes immediately.
+    """
     social_path = f"social_output/{slug}.json"
     if not os.path.exists(social_path):
         print(f"  [fb] social_output/{slug}.json not found. Run reedit_post.py and image_gen.py first.")
@@ -38,29 +42,42 @@ def post_to_facebook(slug, scheduled_dt_str):
         print(f"  [fb] Meme image not found at: {meme_path}")
         return
 
-    unix_ts = parse_ist_to_unix(scheduled_dt_str)
-
     url = f"https://graph.facebook.com/v19.0/{FACEBOOK_PAGE_ID}/photos"
+
+    post_data = {
+        "message": caption,
+        "access_token": FACEBOOK_PAGE_ACCESS_TOKEN,
+    }
+
+    if schedule_dt_str:
+        unix_ts = parse_ist_to_unix(schedule_dt_str)
+        post_data["published"] = "false"
+        post_data["scheduled_publish_time"] = unix_ts
+        action = f"Scheduling for {schedule_dt_str} IST"
+    else:
+        post_data["published"] = "true"
+        action = "Publishing now"
+
+    print(f"  [fb] {action}...")
+
     with open(meme_path, "rb") as img:
-        r = requests.post(
-            url,
-            files={"source": img},
-            data={
-                "message": caption,
-                "published": "false",
-                "scheduled_publish_time": unix_ts,
-                "access_token": FACEBOOK_PAGE_ACCESS_TOKEN,
-            },
-        )
+        r = requests.post(url, files={"source": img}, data=post_data)
 
     if r.status_code in (200, 201):
         post_id = r.json().get("id") or r.json().get("post_id")
-        print(f"  [fb] Scheduled successfully → Post ID: {post_id}")
+        if schedule_dt_str:
+            print(f"  [fb] Scheduled successfully → Post ID: {post_id}")
+        else:
+            print(f"  [fb] Published successfully → Post ID: {post_id}")
     else:
         print(f"  [fb] Error {r.status_code}: {r.text[:300]}")
 
 
 if __name__ == "__main__":
     slug = input("Enter slug: ").strip()
-    scheduled_dt = input("Enter scheduled datetime IST (YYYY-MM-DD HH:MM): ").strip()
-    post_to_facebook(slug, scheduled_dt)
+    mode = input("Publish now or schedule? (now/schedule): ").strip().lower()
+    if mode == "schedule":
+        scheduled_dt = input("Enter scheduled datetime IST (YYYY-MM-DD HH:MM): ").strip()
+        post_to_facebook(slug, scheduled_dt)
+    else:
+        post_to_facebook(slug)
