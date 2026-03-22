@@ -19,11 +19,26 @@ def parse_ist_to_unix(dt_str):
     return int(dt_ist.timestamp())
 
 
+def get_page_token(user_or_page_token, page_id):
+    """
+    Exchange a User Access Token (or existing Page token) for the Page's own
+    Access Token. Facebook requires page operations to be performed AS the page.
+    """
+    r = requests.get(
+        f"https://graph.facebook.com/v19.0/{page_id}",
+        params={"fields": "access_token", "access_token": user_or_page_token},
+    )
+    token = r.json().get("access_token")
+    if not token:
+        print(f"  [fb] Could not get Page Access Token: {r.text[:200]}")
+    return token
+
+
 def post_to_facebook(slug, schedule_dt_str=None):
     """
-    Post meme image + Facebook caption to Page via two-step flow
-    (upload photo unpublished → create feed post with attached_media).
-    Requires Page Access Token with pages_manage_posts permission.
+    Post meme image + Facebook caption to Page.
+    Requires FACEBOOK_PAGE_ACCESS_TOKEN in .env (User or Page token with
+    pages_manage_posts + pages_read_engagement scopes).
 
     schedule_dt_str: 'YYYY-MM-DD HH:MM' IST — if None, publishes immediately.
     """
@@ -45,6 +60,11 @@ def post_to_facebook(slug, schedule_dt_str=None):
         print(f"  [fb] Meme image not found at: {meme_path}")
         return
 
+    # Always use the Page's own access token for page operations
+    page_token = get_page_token(FACEBOOK_PAGE_ACCESS_TOKEN, FACEBOOK_PAGE_ID)
+    if not page_token:
+        return
+
     base = f"https://graph.facebook.com/v19.0/{FACEBOOK_PAGE_ID}"
 
     # Step 1 — Upload photo as unpublished to get a photo ID
@@ -55,7 +75,7 @@ def post_to_facebook(slug, schedule_dt_str=None):
             files={"source": img},
             data={
                 "published": "false",
-                "access_token": FACEBOOK_PAGE_ACCESS_TOKEN,
+                "access_token": page_token,
             },
         )
     if r1.status_code not in (200, 201):
@@ -68,7 +88,7 @@ def post_to_facebook(slug, schedule_dt_str=None):
     feed_data = {
         "message": caption,
         "attached_media": json.dumps([{"media_fbid": photo_id}]),
-        "access_token": FACEBOOK_PAGE_ACCESS_TOKEN,
+        "access_token": page_token,
     }
 
     if schedule_dt_str:
