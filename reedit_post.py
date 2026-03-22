@@ -120,16 +120,23 @@ def create_social_media_post(slug=None):
 
     gemini_output = SocialOutput.model_validate_json(raw_response.text)
 
+    blog_url = f"https://castefreeindia.com/{slug}/"
+
+    # Replace [LINK] placeholder with the actual blog URL in all text fields
+    facebook_post = gemini_output.facebook.post.replace("[LINK]", blog_url)
+    reddit_post = gemini_output.reddit.post.replace("[LINK]", blog_url)
+    x_thread = [t.replace("[LINK]", blog_url) for t in gemini_output.x.thread]
+
     social_output = {
         "meta": {
             "script_stage": "social",
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "source_post_title": blog_h1
         },
-        "x": gemini_output.x.model_dump(),
-        "reddit": gemini_output.reddit.model_dump(),
+        "x": {"hook": gemini_output.x.hook, "thread": x_thread},
+        "reddit": {"title": gemini_output.reddit.title, "post": reddit_post},
         "instagram": gemini_output.instagram.model_dump(),
-        "facebook": gemini_output.facebook.model_dump()
+        "facebook": {"post": facebook_post}
     }
 
     os.makedirs("social_output", exist_ok=True)
