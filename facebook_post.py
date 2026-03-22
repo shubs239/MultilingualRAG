@@ -21,7 +21,10 @@ def parse_ist_to_unix(dt_str):
 
 def post_to_facebook(slug, schedule_dt_str=None):
     """
-    Post meme image + Facebook caption to Page.
+    Post meme image + Facebook caption to Page via two-step flow
+    (upload photo unpublished → create feed post with attached_media).
+    Requires Page Access Token with pages_manage_posts permission.
+
     schedule_dt_str: 'YYYY-MM-DD HH:MM' IST — if None, publishes immediately.
     """
     social_path = f"social_output/{slug}.json"
@@ -42,35 +45,52 @@ def post_to_facebook(slug, schedule_dt_str=None):
         print(f"  [fb] Meme image not found at: {meme_path}")
         return
 
-    url = f"https://graph.facebook.com/v19.0/{FACEBOOK_PAGE_ID}/photos"
+    base = f"https://graph.facebook.com/v19.0/{FACEBOOK_PAGE_ID}"
 
-    post_data = {
+    # Step 1 — Upload photo as unpublished to get a photo ID
+    print("  [fb] Uploading image...")
+    with open(meme_path, "rb") as img:
+        r1 = requests.post(
+            f"{base}/photos",
+            files={"source": img},
+            data={
+                "published": "false",
+                "access_token": FACEBOOK_PAGE_ACCESS_TOKEN,
+            },
+        )
+    if r1.status_code not in (200, 201):
+        print(f"  [fb] Image upload failed {r1.status_code}: {r1.text[:300]}")
+        return
+    photo_id = r1.json().get("id")
+    print(f"  [fb] Image uploaded → Photo ID: {photo_id}")
+
+    # Step 2 — Create feed post with attached photo
+    feed_data = {
         "message": caption,
+        "attached_media": json.dumps([{"media_fbid": photo_id}]),
         "access_token": FACEBOOK_PAGE_ACCESS_TOKEN,
     }
 
     if schedule_dt_str:
         unix_ts = parse_ist_to_unix(schedule_dt_str)
-        post_data["published"] = "false"
-        post_data["scheduled_publish_time"] = unix_ts
+        feed_data["published"] = "false"
+        feed_data["scheduled_publish_time"] = unix_ts
         action = f"Scheduling for {schedule_dt_str} IST"
     else:
-        post_data["published"] = "true"
+        feed_data["published"] = "true"
         action = "Publishing now"
 
     print(f"  [fb] {action}...")
+    r2 = requests.post(f"{base}/feed", data=feed_data)
 
-    with open(meme_path, "rb") as img:
-        r = requests.post(url, files={"source": img}, data=post_data)
-
-    if r.status_code in (200, 201):
-        post_id = r.json().get("id") or r.json().get("post_id")
+    if r2.status_code in (200, 201):
+        post_id = r2.json().get("id")
         if schedule_dt_str:
             print(f"  [fb] Scheduled successfully → Post ID: {post_id}")
         else:
             print(f"  [fb] Published successfully → Post ID: {post_id}")
     else:
-        print(f"  [fb] Error {r.status_code}: {r.text[:300]}")
+        print(f"  [fb] Post failed {r2.status_code}: {r2.text[:300]}")
 
 
 if __name__ == "__main__":
