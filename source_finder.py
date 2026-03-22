@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup, Comment
 GOVERNMENT_DOMAINS = ["ncrb.gov.in", "data.gov.in", "pib.gov.in", "mospi.gov.in", ".gov.in"]
 NEWS_DOMAINS = [
     "thehindu.com", "indianexpress.com", "scroll.in", "thewire.in",
-    "bhaskar.com", "newslaundry.com",
+    "bhaskar.com", "newslaundry.com", "caravanmagazine.in", "themooknayak.com",
 ]
 RESEARCH_DOMAINS = [
     "scholar.google", "jstor.org", "epw.in", "britannica.com", "researchgate.net", "academia.edu", "books.google"
@@ -108,10 +108,40 @@ def _get_domain(url: str) -> str:
         return ""
 
 
-def insert_link_at_paragraph(html: str, paragraph_num: int, url: str) -> str:
+_STOPWORDS = {
+    "a", "an", "the", "is", "in", "of", "that", "this", "it", "to", "and",
+    "or", "for", "on", "at", "by", "with", "was", "are", "as", "from", "be",
+    "has", "had", "have", "he", "she", "they", "we", "you", "i", "its", "their",
+    "which", "who", "not", "but", "so", "if", "also", "into", "than", "been",
+    "were", "will", "would", "could", "should", "do", "did", "does", "more",
+    "about", "over", "such", "these", "those", "can", "may", "said", "says",
+}
+
+
+def _find_best_paragraph(paragraphs, claim_text: str):
     """
-    Insert a [source] superscript link after the target paragraph.
-    paragraph_num is 1-indexed. If out of range, appends to the last paragraph.
+    Score each <p> tag by how many significant words from claim_text it contains.
+    Returns the index of the best match (min 2 word matches), or None.
+    """
+    words = [w for w in claim_text.lower().split() if w.isalpha() and w not in _STOPWORDS]
+    if not words:
+        return None
+
+    best_idx, best_score = None, 0
+    for i, p in enumerate(paragraphs):
+        p_text = p.get_text().lower()
+        score = sum(1 for w in words if w in p_text)
+        if score > best_score:
+            best_score, best_idx = score, i
+
+    return best_idx if best_score >= 2 else None
+
+
+def insert_link_at_paragraph(html: str, paragraph_num: int, url: str, claim_text: str = "") -> str:
+    """
+    Insert a [source] superscript link into the best-matching paragraph.
+    Uses semantic word matching against claim_text when provided; falls back
+    to position-based (paragraph_num, 1-indexed).
     Returns the modified HTML string.
     """
     soup = BeautifulSoup(html, "lxml")
@@ -120,8 +150,12 @@ def insert_link_at_paragraph(html: str, paragraph_num: int, url: str) -> str:
     if not paragraphs:
         return html
 
-    # Clamp to valid index
-    idx = max(0, min(paragraph_num - 1, len(paragraphs) - 1))
+    # Try semantic match first
+    idx = _find_best_paragraph(paragraphs, claim_text) if claim_text else None
+    # Fall back to position-based
+    if idx is None:
+        idx = max(0, min(paragraph_num - 1, len(paragraphs) - 1))
+
     target = paragraphs[idx]
 
     # Build <sup><a href="..." target="_blank" rel="noopener">[source]</a></sup>
@@ -211,7 +245,7 @@ def process_claims(slug: str = None, input_file: str = None) -> None:
 
         if url:
             print(f"  → found: {url[:80]}")
-            html = insert_link_at_paragraph(html, paragraph_num, url)
+            html = insert_link_at_paragraph(html, paragraph_num, url, claim_text=claim_text)
             results.append({
                 "claim": claim_text,
                 "type": claim_type,
