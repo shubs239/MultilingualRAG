@@ -54,6 +54,8 @@ class Segment(BaseModel):
 class ProductionSheet(BaseModel):
     slug: str
     blog_h1: str
+    youtube_title: str
+    youtube_description: str
     target_duration_sec: int
     segments: list[Segment]
 
@@ -82,6 +84,14 @@ Use natural code-switching. Provoke sharing and outrage: "yaar sun lo", "shock l
 Output ONLY valid JSON — no markdown fences, no commentary."""
 
 SEGMENT_STRUCTURE = """\
+Also generate:
+- youtube_title: A punchy, curiosity-driven YouTube Shorts title (max 60 chars). Should make someone stop scrolling. Title Case.
+- youtube_description: SEO-optimised YouTube description (150–300 words). Structure:
+    Line 1-2: Hook — the most shocking fact or question from the video (visible before "Show more")
+    Line 3 onward: 4-6 bullet points summarising key facts covered
+    Then: relevant hashtags (#Ambedkar #CasteSystem #Dalit #IndianHistory #CasteFreeIndia)
+    Then: "Full article: https://castefreeindia.com/{slug}/"
+
 Structure:
 - Hook (0–15s): shocking stat or provocative question
 - Problem/Rage setup (15–40s): what the system/dominant narrative says
@@ -122,6 +132,8 @@ Output a single JSON object matching this schema exactly:
 {{
   "slug": "...",
   "blog_h1": "...",
+  "youtube_title": "...",
+  "youtube_description": "...",
   "target_duration_sec": 170,
   "segments": [
     {{
@@ -233,9 +245,15 @@ def generate_script(slug: str = None, input_file: str = None) -> None:
         print(f"  Raw output (first 500 chars): {raw[:500]}")
         sys.exit(1)
 
-    # Ensure slug is set
+    # Ensure slug and title are set correctly
     sheet_dict["slug"] = slug
     sheet_dict["blog_h1"] = blog_h1
+    # Enforce Title Case on youtube_title
+    if sheet_dict.get("youtube_title"):
+        sheet_dict["youtube_title"] = sheet_dict["youtube_title"].title()
+    # Replace {slug} placeholder in description with the real slug
+    if sheet_dict.get("youtube_description"):
+        sheet_dict["youtube_description"] = sheet_dict["youtube_description"].replace("{slug}", slug)
 
     try:
         sheet = ProductionSheet.model_validate(sheet_dict)
@@ -252,7 +270,8 @@ def generate_script(slug: str = None, input_file: str = None) -> None:
         json.dump(sheet.model_dump(), f, ensure_ascii=False, indent=2)
 
     total_est = sum(s.estimated_duration_sec for s in sheet.segments)
-    print(f"\n  Segments : {len(sheet.segments)}")
+    print(f"\n  YouTube title : {sheet.youtube_title}")
+    print(f"  Segments      : {len(sheet.segments)}")
     print(f"  Est. duration : {total_est:.1f}s")
     print(f"  Saved → {production_sheet}")
 
