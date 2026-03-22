@@ -105,12 +105,13 @@ Manual follow-up (after pipeline):
 | Task 10.1 | `video/shorts_visuals.py` | Switch to runware:108@1 with native 9:16 (1080×1920) dimensions |
 | Task 10.2 | `video/shorts_visuals.py` | Strengthen Indian context in STYLE_SUFFIX; block Egyptian/Greek imagery in NEGATIVE_PROMPT |
 | Source finder fix | `source_finder.py` | Semantic paragraph matching for correct citation placement; added caravanmagazine.in + themooknayak.com to NEWS_DOMAINS; added britannica.com, researchgate.net, academia.edu, books.google to trusted domains |
-| Task 9 | `facebook_post.py`, `instagram_post.py` | Post meme to Facebook Page (scheduled) + quote card to Instagram Business account (scheduled) via Meta Graph API v19.0 |
+| Task 9 | `facebook_post.py`, `instagram_post.py` | Post meme to Facebook Page + quote card to Instagram Business account via Meta Graph API v19.0; publish now or schedule (IST); auto-exchanges for Page Access Token; auto-looks up Instagram Business Account ID |
+| Task 9.1 | `reedit_post.py` | Replace `[LINK]` placeholder with real blog URL (`https://castefreeindia.com/{slug}/`) in Facebook, Reddit, and X thread captions |
+| Task 10.3 | `video/shorts_script.py` | Add `youtube_title` (punchy, Title Case enforced) and `youtube_description` (SEO-optimised, 150–300 words with hashtags + blog URL) to production sheet |
 
 ---
 
 ## Pending tasks
-
 
 ### Task 8 — Schedule X (Twitter) posts
 ### Task — Backlink automation — research and design how to automatically acquire backlinks for published posts (e.g. submit to directories, outreach to allied sites, auto-comment with links on relevant forums)
