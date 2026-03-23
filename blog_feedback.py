@@ -13,10 +13,16 @@ api_key = os.getenv('API_KEY')
 client = genai.Client(api_key=api_key)
 
 
+class HeadlineOption(BaseModel):
+    headline: str
+    targets_query: str
+    rationale: str
+
 class FeedbackOutput(BaseModel):
     issues_found: List[str]
     suggestions: List[str]
     score: int
+    headline_options: List[HeadlineOption] = []
 
 sys_instruct_feedback = """You are an SEO Editor & Content Strategist for an anti-caste, evidence-based blog.
 
@@ -66,6 +72,27 @@ def first_feedback(slug=None):
 
     blog_html = draft["content"]["blog_post_html"]
 
+    seo = draft.get("seo", {})
+    suggestions = seo.get("suggestions", [])
+
+    seo_context = ""
+    if suggestions:
+        bullets = "\n".join(f"- {s}" for s in suggestions)
+        seo_context = (
+            f"\nSEO CONTEXT — people search for this topic using these phrases:\n"
+            f"{bullets}\n\n"
+            f"When suggesting headline improvements:\n"
+            f"- Incorporate the most relevant search phrase naturally\n"
+            f"- Suggest 3 headline options, each targeting a different search phrase from the list\n"
+            f"- For each option note: which search phrase it targets and why it works for "
+            f"both SEO and emotional impact\n"
+        )
+
+    user_prompt = (
+        f"{seo_context}"
+        f"This is the blog post HTML: {blog_html}. Output: Feedback in JSON format as described."
+    )
+
     raw_response = client.models.generate_content(
         model="models/gemini-flash-lite-latest",
         config=types.GenerateContentConfig(
@@ -73,7 +100,7 @@ def first_feedback(slug=None):
             response_mime_type="application/json",
             response_schema=FeedbackOutput,
             max_output_tokens=20024),
-        contents=[f"This is the blog post HTML: {blog_html}. Output: Feedback in JSON format as described."]
+        contents=[user_prompt]
     )
 
     feedback_block = FeedbackOutput.model_validate_json(raw_response.text)
@@ -81,7 +108,8 @@ def first_feedback(slug=None):
     draft["feedback"] = {
         "issues_found": feedback_block.issues_found,
         "suggestions": feedback_block.suggestions,
-        "score": feedback_block.score
+        "score": feedback_block.score,
+        "headline_options": [o.model_dump() for o in feedback_block.headline_options]
     }
 
     os.makedirs("feedback_output", exist_ok=True)

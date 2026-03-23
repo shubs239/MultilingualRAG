@@ -23,6 +23,8 @@ class Claim(BaseModel):
 class Title(BaseModel):
     blog_h1: str
     blog_seo_title: str
+    blog_h1_search_query: str = ""
+    blog_h1_options_considered: List[str] = []
 
 class FinalContent(BaseModel):
     blog_post_html: str
@@ -107,6 +109,39 @@ def final_draft(slug=None):
     blog_html = feedback_data["content"]["blog_post_html"]
     feedback_block = feedback_data["feedback"]
 
+    # Read seo block from draft_output
+    draft_path = os.path.join("draft_output", f"{slug}.json")
+    with open(draft_path) as f:
+        draft_data = json.load(f)
+    seo = draft_data.get("seo", {})
+    seo_suggestions = seo.get("suggestions", [])
+    headline_options = feedback_block.get("headline_options", [])
+
+    headline_guidance = ""
+    if seo_suggestions or headline_options:
+        parts = ["HEADLINE GUIDANCE:"]
+        if seo_suggestions:
+            parts.append(f"Target search phrases: {seo_suggestions}")
+        if headline_options:
+            opts = "\n".join(
+                f"  - \"{o['headline']}\" (targets: {o['targets_query']})"
+                for o in headline_options
+            )
+            parts.append(f"Feedback suggested these headline options:\n{opts}")
+        parts.append(
+            "Select the strongest option or improve upon it. "
+            "The final blog_h1 must naturally include one of the target search phrases "
+            "and stay under 70 characters."
+        )
+        headline_guidance = "\n".join(parts) + "\n\n"
+
+    user_prompt = (
+        f"{headline_guidance}"
+        f"This is the article HTML: {blog_html}\n\n"
+        f"This is the feedback: {json.dumps(feedback_block)}\n\n"
+        f"Output: Revised article with all feedback implemented, in JSON format as described."
+    )
+
     raw_response = client.models.generate_content(
         model="models/gemini-flash-lite-latest",
         config=types.GenerateContentConfig(
@@ -114,7 +149,7 @@ def final_draft(slug=None):
             response_mime_type="application/json",
             response_schema=FinalOutput,
             max_output_tokens=100024),
-        contents=[f"This is the article HTML: {blog_html}\n\nThis is the feedback: {json.dumps(feedback_block)}\n\nOutput: Revised article with all feedback implemented, in JSON format as described."]
+        contents=[user_prompt]
     )
 
     gemini_output = FinalOutput.model_validate_json(raw_response.text)
@@ -133,7 +168,9 @@ def final_draft(slug=None):
         },
         "title": {
             "blog_h1": gemini_output.title.blog_h1,
-            "blog_seo_title": gemini_output.title.blog_seo_title
+            "blog_seo_title": gemini_output.title.blog_seo_title,
+            "blog_h1_search_query": gemini_output.title.blog_h1_search_query,
+            "blog_h1_options_considered": gemini_output.title.blog_h1_options_considered
         },
         "content": {
             "blog_post_html": blog_html_final,

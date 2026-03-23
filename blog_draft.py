@@ -7,7 +7,7 @@ import os
 import json
 from datetime import datetime, timezone
 from fetch_caption import caption, get_captions_up_to_hour
-from utils import make_slug
+from utils import make_slug, get_search_suggestions, extract_search_topic
 
 load_dotenv()
 api_key = os.getenv('API_KEY')
@@ -114,6 +114,13 @@ def first_draft(link, input_minutes: int = 60):
 
     slug = make_slug(gemini_output.headlines.blog_h1)
 
+    # --- T1: Google Suggest ---
+    blog_h1 = gemini_output.headlines.blog_h1
+    search_topic = extract_search_topic(blog_h1, client)
+    suggestions = get_search_suggestions(search_topic)
+    if not suggestions:
+        print("  [T1] Google Suggest returned no results — continuing without SEO suggestions")
+
     draft_output = {
         "meta": {
             "script_stage": "draft",
@@ -137,6 +144,11 @@ def first_draft(link, input_minutes: int = 60):
         },
         "sourcing": {
             "claims_needing_citation": [c.model_dump() for c in gemini_output.sourcing.claims_needing_citation]
+        },
+        "seo": {
+            "search_topic_used": search_topic,
+            "suggestions": suggestions,
+            "fetched_at": datetime.now(timezone.utc).isoformat()
         }
     }
 
