@@ -338,7 +338,8 @@ def load_confirmed_pages(topic_to_slugs: dict) -> dict:
     confirmed = {}
     new_lookups = 0
 
-    for topic_key, info in topic_to_slugs.items():
+    total_topics = len(topic_to_slugs)
+    for idx, (topic_key, info) in enumerate(topic_to_slugs.items(), 1):
         canonical_topic = info["canonical"]
 
         if topic_key in cache and is_cache_fresh(cache[topic_key], WIKI_PAGES_CACHE_MAX_DAYS):
@@ -350,6 +351,8 @@ def load_confirmed_pages(topic_to_slugs: dict) -> dict:
                 "cached_at": datetime.now(timezone.utc).isoformat(),
             }
             new_lookups += 1
+            if idx % 10 == 0 or idx == total_topics:
+                print(f"  [pages] {idx}/{total_topics} looked up, {len(confirmed)} confirmed so far...")
             time.sleep(WIKI_API_DELAY)
 
         if page_title:
