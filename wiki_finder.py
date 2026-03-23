@@ -50,7 +50,10 @@ MIN_RELEVANCE             = 0.35
 WIKI_API_DELAY            = 0.5   # seconds between Wikipedia API calls
 MIN_CLAIM_LEN             = 30    # skip claims shorter than this
 
-WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
+WIKIPEDIA_API    = "https://en.wikipedia.org/w/api.php"
+WIKIPEDIA_HEADERS = {
+    "User-Agent": "CasteFreeIndia-WikiFinder/1.0 (https://castefreeindia.com; contact@castefreeindia.com) python-requests"
+}
 
 client = genai.Client(api_key=API_KEY)
 
@@ -300,13 +303,20 @@ def search_wikipedia_page(topic: str) -> str | None:
             WIKIPEDIA_API,
             params={"action": "query", "list": "search",
                     "srsearch": topic, "format": "json", "srlimit": 1},
+            headers=WIKIPEDIA_HEADERS,
             timeout=10,
         )
-        results = r.json().get("query", {}).get("search", [])
+        r.raise_for_status()
+        data = r.json()
+        if "error" in data:
+            print(f"  [pages] Wikipedia API error for '{topic}': {data['error']}")
+            return None
+        results = data.get("query", {}).get("search", [])
         if not results:
             return None
         return results[0]["title"]
-    except Exception:
+    except Exception as e:
+        print(f"  [pages] Request failed for '{topic}': {e}")
         return None
 
 
@@ -315,6 +325,15 @@ def load_confirmed_pages(topic_to_slugs: dict) -> dict:
     Return {topic_key: {"page_title": str, "slugs": list}} for all confirmed pages.
     Uses cache/wiki_pages_cache.json with 30-day expiry.
     """
+    # Connectivity check before the full loop
+    print("  [pages] Testing Wikipedia API connectivity...")
+    test_result = search_wikipedia_page("B. R. Ambedkar")
+    if test_result is None:
+        print("  [pages] WARNING: Test lookup for 'B. R. Ambedkar' returned None.")
+        print("  [pages] Check your internet connection or Wikipedia API access.")
+    else:
+        print(f"  [pages] Connectivity OK — test result: '{test_result}'")
+
     cache = load_json(WIKI_PAGES_CACHE_PATH, {})
     confirmed = {}
     new_lookups = 0
@@ -372,6 +391,7 @@ def fetch_citation_needed_claims(page_title: str) -> list:
             WIKIPEDIA_API,
             params={"action": "parse", "page": page_title,
                     "prop": "wikitext", "format": "json"},
+            headers=WIKIPEDIA_HEADERS,
             timeout=15,
         )
         wikitext = r.json().get("parse", {}).get("wikitext", {}).get("*", "")
