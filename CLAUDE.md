@@ -30,6 +30,8 @@ MultilingualRAG/
 ├── internal_linker.py       — Stage 7: TF-IDF cosine similarity vs published WP posts, inserts top-3 internal links → adds internal_links block to final_output
 ├── wordpress_api.py         — Reads final_output/{slug}.json, uploads featured image, creates WordPress draft post
 ├── reedit_post.py           — Generates X thread, Reddit post, Instagram/Facebook captions → social_output/{slug}.json
+├── x_post.py                — Post X thread from social_output via tweepy OAuth 1.0a
+├── distribute.py            — One-shot distribution: X + Facebook + Instagram from one slug prompt
 ├── utils.py                 — Shared helpers (make_slug, get_captions_up_to_hour, etc.)
 ├── image.png                — Meme template image used by image_gen.py
 ├── images/                  — All generated images (featured, quote card, X header, meme) — gitignored
@@ -77,6 +79,7 @@ python run_pipeline.py
 Manual follow-up (after pipeline):
   python wordpress_api.py   — prompts for slug, posts to WordPress as draft
   python reedit_post.py     — prompts for slug, generates social media content
+  python distribute.py      — prompts for slug, posts to X + Facebook + Instagram immediately
 ```
 
 ---
@@ -110,72 +113,13 @@ Manual follow-up (after pipeline):
 | Task 10.3 | `video/shorts_script.py` | Add `youtube_title` (punchy, Title Case enforced) and `youtube_description` (SEO-optimised, 150–300 words with hashtags + blog URL) to production sheet |
 | Task T1 | `utils.py`, `blog_draft.py`, `blog_feedback.py`, `final blog.py` | Google Suggest integration: extract search topic via Gemini, fetch autocomplete suggestions, feed SEO context into feedback + final prompts, add `seo` block to draft JSON and `headline_options` to feedback JSON |
 | Task T3 | `wiki_finder.py` | Weekly Wikipedia citation-needed scanner: Gemini entity extraction per post → Wikipedia API confirmation → wikitext scan for `{{citation needed}}` → TF-IDF claim matching → `wiki_opportunities.json` with pre-formatted citation markup + edit URLs. Run manually: `python wiki_finder.py` |
+| x_post + distribute | `x_post.py`, `distribute.py` | Post X thread via tweepy OAuth 1.0a; distribute.py orchestrates X + FB + IG from one slug prompt |
 
 ---
 
 ## Pending tasks
 
-### Task — Schedule X (Twitter) posts
 ### Task — Backlink automation — research and design how to automatically acquire backlinks for published posts (e.g. submit to directories, outreach to allied sites, auto-comment with links on relevant forums)
-## Traffic & Growth Tasks
-
-
----
-
-
-### Task T4 (Step 4 only) — Medium summary generator
-
-Add Step 4 to backlink_submitter.py.
-If backlink_submitter.py does not exist yet, create it
-as a standalone script — Steps 1, 2, 3 are separate tasks
-added later. For now build Step 4 only.
-
-Called at the end of run_pipeline.py after wordpress_api.py
-confirms successful post. If wordpress_api.py fails,
-do not run this step.
-
-Input: reads blog_h1, blog_post_html, post_url from
-       final_output/{slug}.json
-Output: saves medium_summary to social_output/{slug}.json
-
-─── What it does ───
-
-Call Gemini with the final blog content:
-  "Generate a Medium cross-post summary for this blog post.
-   Format:
-   - Opening paragraph (2-3 sentences): the core argument
-     or most striking finding from the post
-   - 3 bullet points: key evidence or findings
-   - Closing line: 'Read the full post with primary sources: [URL]'
-   - Final note in italics: 'Originally published at
-     castefreeindia.com — read there for full citations
-     and source links.'
-
-   Keep total length under 200 words.
-   Tone: direct and factual, same as the blog.
-   Do not use phrases like 'In this post' or 'The author'."
-
-Save to social_output/{slug}.json under key medium_summary:
-{
-  "medium_summary": {
-    "text": "",
-    "generated_at": "",
-    "word_count": 0
-  }
-}
-
-Do NOT auto-post to Medium.
-Saved for manual review and posting only.
-When you post to Medium manually: paste the summary,
-add canonical URL pointing to castefreeindia.com
-(Medium Settings → Advanced → Canonical URL).
-This prevents duplicate content penalty from Google.
-
-If Gemini call fails: log warning, skip silently.
-Do not fail run_pipeline.py over this step.
-
-No new .env keys needed.
-
 
 ---
 
@@ -189,8 +133,6 @@ NEVER implement:
 - Any paid link service or PBN
 - Reciprocal link exchange schemes
 
-ALWAYS run after each publish (backlink_submitter.py):
-- Medium summary saved for manual posting
 
 Manual weekly tasks — not automated, you do these:
 - Post 2-3 times to Reddit using social_output/{slug}.json
