@@ -22,7 +22,7 @@ class FeedbackOutput(BaseModel):
     issues_found: List[str]
     suggestions: List[str]
     score: int
-    headline_options: List[HeadlineOption] = []
+    headline_options: List[HeadlineOption]
 
 sys_instruct_feedback = """You are an SEO Editor & Content Strategist for an anti-caste, evidence-based blog.
 

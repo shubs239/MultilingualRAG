@@ -23,8 +23,8 @@ class Claim(BaseModel):
 class Title(BaseModel):
     blog_h1: str
     blog_seo_title: str
-    blog_h1_search_query: str = ""
-    blog_h1_options_considered: List[str] = []
+    blog_h1_search_query: str
+    blog_h1_options_considered: List[str]
 
 class FinalContent(BaseModel):
     blog_post_html: str
