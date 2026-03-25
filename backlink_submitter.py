@@ -26,7 +26,6 @@ BLOG_RSS = "https://castefreeindia.com/feed/"
 
 PING_SERVICES = [
     ("Pingomatic",         "http://rpc.pingomatic.com/"),
-    ("Yandex",             "http://ping.blogs.yandex.ru/RPC2"),
     ("Google Blog Search", "http://blogsearch.google.com/ping/RPC2"),
 ]
 
