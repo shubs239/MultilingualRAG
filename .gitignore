@@ -210,6 +210,12 @@ myenv/share/
 # Blogs source data — never push (contains unpublished content)
 Blogs data/
 
+# Google service account credentials — never push
+*.json
+!package.json
+backlink_log/
+cache/
+
 # Root-level stray folders (artifacts from pre-fix runs; kept as safety net)
 /audio/
 /output/
