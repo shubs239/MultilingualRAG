@@ -97,14 +97,34 @@ def _ping_services(post_url: str) -> list:
 
 # ─── WordPress REST API ───────────────────────────────────────────────────────
 
+def _get_wp_token() -> str | None:
+    """Get a JWT Bearer token from WordPress."""
+    WP_USERNAME = os.getenv("WP_USERNAME")
+    WP_PASSWORD = os.getenv("WP_PASSWORD")
+    r = requests.post(
+        "https://castefreeindia.com/wp-json/api/v1/token",
+        data={"username": WP_USERNAME, "password": WP_PASSWORD},
+        timeout=15,
+    )
+    token = r.json().get("jwt_token")
+    if not token:
+        print(f"[wp] Auth failed: {r.text[:200]}")
+    return token
+
+
 def _get_all_published_urls() -> list:
     """Paginate through WP REST API and return all published post URLs."""
+    token = _get_wp_token()
+    if not token:
+        return []
+    headers = {"Authorization": f"Bearer {token}"}
     urls = []
     page = 1
     while True:
         r = requests.get(
             WP_POSTS_API,
             params={"status": "publish", "per_page": 100, "page": page, "_fields": "link"},
+            headers=headers,
             timeout=30,
         )
         if r.status_code not in (200, 201):
